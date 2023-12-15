@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=2  # Number of CPUs (Don't use more than 12/6 per GPU)
 #SBATCH --mem=32G  # Memory in GB (Don't use more than 48/24 per GPU unless you absolutely need it and know what you are doing)
  
-# run the program
+# To run a script on the cluster, change CONDA_PATH and export WANDB_API_KEY
 ml cuda  # load default CUDA module
 CONDA_PATH=/home/guests/zuzanna_trafas/anaconda3
 source $CONDA_PATH/etc/profile.d/conda.sh
