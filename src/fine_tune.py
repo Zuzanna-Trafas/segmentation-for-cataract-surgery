@@ -5,6 +5,7 @@ from torch.optim import AdamW
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib import cm
+from datetime import datetime
 import argparse
 import wandb
 
@@ -95,6 +96,30 @@ for epoch in range(training_params["epochs"]):  # loop over the dataset multiple
             total_val_loss += val_loss.item()
     avg_val_loss = total_val_loss / len(val_dataloader)
     wandb.log({"val_loss": avg_val_loss})
+
+# Save the trained model
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+save_dir = f"trained_models/{training_params['model_name']}_{timestamp}"
+model_save_path = f"{save_dir}/model"
+model.save_pretrained(model_save_path)
+
+# Save the processor (if needed for inference)
+processor_save_path = f"{save_dir}/processor"
+processor.save_pretrained(processor_save_path)
+
+# Save other relevant information
+torch.save(optimizer.state_dict(), f"{save_dir}/optimizer.pth")
+
+# Log the saved model and other files to W&B
+artifact = wandb.Artifact(
+    name=f"{training_params['model_name']}_{timestamp}",
+    type="model",
+    description=f"Trained model for {training_params['model_name']} at epoch {epoch + 1}",
+)
+artifact.add_dir(model_save_path)
+artifact.add_file(processor_save_path)
+artifact.add_file(f"{save_dir}/optimizer.pth")
+wandb.log_artifact(artifact)
 
 
 # TODO test inference
