@@ -23,14 +23,15 @@ class PupilSizeCalculator:
           highlighted_image[~pupil_mask] = 0
           return highlighted_image, pupil_mask
      
-     def calculate_width(self,image_path):
+     def calculate_width_and_area(self,image_path):
           """
           Calculates the width of the masked image based on the contour, and the difference of the most right and most left pixels.
-          In this way, when an instrument covers some parts of the pupil, and those pixels are not defined are part of the pupil, the width calculation will be right.
+          Calculates the area of the masked image based on the contour.
+          Returns nones if pupil is not found, or not the full pupil is detected on the image.
           """
           recording, pupil_mask = self.convert_image(image_path)
 
-          contours, _ = cv2.findContours(pupil_mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+          contours, _ = cv2.findContours(recording.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
           if contours:
                largest_contour = max(contours, key=cv2.contourArea)
 
@@ -38,10 +39,15 @@ class PupilSizeCalculator:
                rightmost = tuple(largest_contour[largest_contour[:,:,0].argmax()][0])
                
                width = rightmost[0] - leftmost[0]
-               
-               return width
+               area = cv2.contourArea(largest_contour)
+
+               # if the edge of the bounding box is exactly on the edge of the image shape, the pupil is probably not full on the image
+               x,y,w,h = cv2.boundingRect(largest_contour)
+               if (x + w) == recording.shape[1] or (y + h) == recording.shape[0] or x == 0 or y == 0:
+                    return None, None
+               return width, area
           else:
-               return None
+               return None, None
 
      def calculate_width_with_sum(self,image_path):
           """
@@ -68,6 +74,13 @@ class PupilSizeCalculator:
           im = np.zeros((*img.shape, 3), dtype=np.uint8)
           im[img == 0] = [0,0,0]
           im[img == 1] = [0,0,255]
+
+          #check bounding box
+          contours, _ = cv2.findContours(img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+          if contours:
+               largest_contour = max(contours, key=cv2.contourArea)
+               x,y,w,h = cv2.boundingRect(largest_contour)
+               im = cv2.rectangle(im,(x,y),(x+w,y+h),(0,255,0),2)
 
           if not cv2.imwrite(file_path, im):
                print("Saving highlighted image was unsuccessful")
@@ -97,12 +110,15 @@ def process_folder(folder_path, threshold):
      for filename in os.listdir(folder_path):
           if filename.endswith(".png"):
                image_path = os.path.join(folder_path, filename)
-               pupil_size = calculator.calculate_width(image_path)
-               print(f"Width of Pupil: {pupil_size} in file: {image_path}")
-               if calculator.has_significant_change(pupil_size, image_path):
-                    print(f"***** Significant width change detected in {filename} *****")
+               pupil_width, pupil_area = calculator.calculate_width_and_area(image_path)
+               if pupil_width and pupil_area:
+                    print(f"Width of Pupil: {pupil_width}, area of pupil: {pupil_area} in file: {image_path}")
+                    if calculator.has_significant_change(pupil_width, image_path):
+                         print(f"***** Significant width change detected in {filename} *****")
+               else:
+                    print(f"Unable to detect a full pupil on the recording {filename}.")
 
-process_folder("/home/data/CaDISv2/Video01/Labels", threshold=15)
+process_folder("/home/data/CaDISv2/Video01/Labels", threshold=10)
 
 """
 # Find the row with the most pixels with the mask
