@@ -168,3 +168,6 @@ wandb/
 
 # trained models
 trained_models/
+
+# sample images
+samples/*.png

@@ -2,9 +2,6 @@ from transformers import AutoProcessor, AutoModelForUniversalSegmentation
 import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib import cm
 from datetime import datetime
 import argparse
 import wandb
