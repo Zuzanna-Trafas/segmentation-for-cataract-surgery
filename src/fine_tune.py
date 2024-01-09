@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model_name",
     help="Name of the model from HuggingFace model hub",
-    default="oneformer_coco_swin_large"
+    default="oneformer_ade20k_swin_tiny"#"oneformer_coco_swin_large"
 )
 parser.add_argument("--lr", type=float, help="Learning rate", default=5e-5)
 parser.add_argument("--epochs", type=int, help="Number of epochs", default=1)
@@ -52,9 +52,9 @@ model = AutoModelForUniversalSegmentation.from_pretrained(f"shi-labs/{training_p
 
 processor.image_processor.num_text = model.config.num_queries - model.config.text_encoder_n_ctx
 
-train_dataset = CustomDataset(processor)
-val_dataset = CustomDataset(processor, video_number=2)
-test_dataset = CustomDataset(processor, video_number=3)
+train_dataset = CustomDataset(processor, video_numbers=[1]) #[1,3,4,5,8,9,10,11,13,14,15,17,18,19,20,21,23,24,25]]
+val_dataset = CustomDataset(processor, video_numbers=[5]) #[5,7,16]
+test_dataset = CustomDataset(processor, video_numbers=[2]) #[2,12,22]
 
 train_dataloader = DataLoader(train_dataset, batch_size=training_params["batch_size"], shuffle=True)
 val_dataloader = DataLoader(val_dataset, batch_size=training_params["batch_size"], shuffle=False)
@@ -67,6 +67,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 print("STARTING TRAINING")
 model.train()
 model.to(device)
+
 for epoch in range(training_params["epochs"]):  # loop over the dataset multiple times
     for batch in train_dataloader:
 
@@ -117,51 +118,5 @@ artifact = wandb.Artifact(
     description=f"Trained model for {training_params['model_name']} at epoch {epoch + 1}",
 )
 artifact.add_dir(model_save_path)
-artifact.add_file(processor_save_path)
 artifact.add_file(f"{save_dir}/optimizer.pth")
 wandb.log_artifact(artifact)
-
-
-# TODO test inference
-model.eval()
-
-# set is_training attribute of base OneFormerModel to None after training
-# this disables the text encoder and hence enables to do forward passes
-# without passing text_inputs
-model.model.is_training = False
-
-# load image
-image = test_dataset[0]
-
-# prepare image for the model
-inputs = processor(images=image, task_inputs=["semantic"], return_tensors="pt")
-
-for k,v in inputs.items():
-    if isinstance(v, torch.Tensor):
-        print(k,v.shape)
-
-# forward pass (no need for gradients at inference time)
-with torch.no_grad():
-    outputs = model(**inputs)
-
-# postprocessing
-semantic_segmentation = processor.post_process_semantic_segmentation(outputs, target_sizes=[image.size[::-1]])[0]
-
-
-def draw_semantic_segmentation(segmentation):
-    # get the used color map
-    viridis = cm.get_cmap('viridis', torch.max(segmentation))
-    # get all the unique numbers
-    labels_ids = torch.unique(segmentation).tolist()
-    fig, ax = plt.subplots()
-    ax.imshow(segmentation)
-    handles = []
-    for label_id in labels_ids:
-        label = model.config.id2label[label_id]
-        color = viridis(label_id)
-        handles.append(mpatches.Patch(color=color, label=label))
-    ax.legend(handles=handles)
-    plt.savefig('semantic_segmentation.png')
-
-
-draw_semantic_segmentation(semantic_segmentation)
