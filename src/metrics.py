@@ -66,13 +66,14 @@ def evaluate(model, processor, val_dataloader, device, num_classes=36, void_labe
     with torch.no_grad():
         for val_batch in val_dataloader:
             val_batch = {k: v.to(device) for k, v in val_batch.items()}
+            target = val_batch.pop('target')[0]
+
             outputs = model(**val_batch)
             val_loss = outputs.loss
             total_val_loss += val_loss.item()
 
             # Assuming the model returns 'predictions' and 'targets'
             predictions = processor.post_process_semantic_segmentation(outputs, target_sizes=[[540, 960]])[0]
-            target = val_batch['target'][0]
 
             all_predictions.append(predictions.cpu())
             all_targets.append(target.cpu())

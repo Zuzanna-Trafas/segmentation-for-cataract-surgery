@@ -53,7 +53,7 @@ model = AutoModelForUniversalSegmentation.from_pretrained(f"shi-labs/{training_p
 
 processor.image_processor.num_text = model.config.num_queries - model.config.text_encoder_n_ctx
 
-train_dataset = CustomDataset(processor, video_numbers=[1,3,4,5,8,9,10]) #  11,13,14,15,17,18,19,20,21,23,24,25
+train_dataset = CustomDataset(processor, video_numbers=[1,3,4,5]) #8,9,10,11,13,14,15,17,18,19,20,21,23,24,25
 val_dataset = CustomDataset(processor, video_numbers=[5,7,16])
 
 train_dataloader = DataLoader(train_dataset, batch_size=training_params["batch_size"], shuffle=True)
@@ -75,6 +75,7 @@ for epoch in range(training_params["epochs"]):  # loop over the dataset multiple
         optimizer.zero_grad()
 
         batch = {k:v.to(device) for k,v in batch.items()}
+        batch.pop('target')
 
         # forward pass
         outputs = model(**batch)
@@ -92,7 +93,7 @@ for epoch in range(training_params["epochs"]):  # loop over the dataset multiple
             if early_stopping.should_stop(avg_val_loss):
                 break
 
-        scheduler.step(avg_val_loss)
+    scheduler.step(avg_val_loss)
 
 
 # Save the trained model
