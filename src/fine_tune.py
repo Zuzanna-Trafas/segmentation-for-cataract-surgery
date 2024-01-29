@@ -29,7 +29,7 @@ training_params = {
   "epochs": args.epochs,
   "batch_size": args.batch_size,
 }
-EVAL_STEPS = 500
+EVAL_STEPS = 100
 
 wandb.login()
 
@@ -87,12 +87,12 @@ for epoch in range(training_params["epochs"]):  # loop over the dataset multiple
         optimizer.step()
 
         if step % EVAL_STEPS == 0:  # Evaluate validation loss every eval_steps
-            avg_val_loss, mIoU, panoptic_quality, pa, pac = evaluate(model, processor, val_dataloader, device)
-            wandb.log({"val_loss": avg_val_loss, "mIoU": mIoU, "panoptic_quality": panoptic_quality, "pixel accuracy": pa, "pixel accuracy per class": pac})
+            avg_val_loss, mIoU, panoptic_quality, pac = evaluate(model, processor, val_dataloader, device)
+            wandb.log({"val_loss": avg_val_loss, "mIoU": mIoU, "panoptic_quality": panoptic_quality, "pixel accuracy per class": pac})
             if early_stopping.should_stop(avg_val_loss):
                 break
 
-    scheduler.step(avg_val_loss)
+        scheduler.step(avg_val_loss)
 
 
 # Save the trained model

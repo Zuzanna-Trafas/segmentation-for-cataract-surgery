@@ -47,6 +47,7 @@ class CustomDataset(Dataset):
 
                 inputs = self.processor(images=frame_image, segmentation_maps=label_image, task_inputs=["panoptic"], return_tensors="pt")
                 inputs = {k:v.squeeze() if isinstance(v, torch.Tensor) else v[0] for k,v in inputs.items()}
+                inputs['target'] = label_image
 
                 return inputs
 

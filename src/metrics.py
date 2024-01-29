@@ -38,13 +38,6 @@ def calculate_panoptic_quality(predicted, target, void_label):
 
 #     average_precision = average_precision_score(targets.numpy(), all_probabilities.numpy(), average='micro')
 #     return average_precision
-    
-
-def calculate_pixel_accuracy(predicted, target):
-    correct_pixels = torch.sum(predicted == target)
-    total_pixels = target.numel()
-    pixel_accuracy = correct_pixels / total_pixels
-    return pixel_accuracy.item()
 
 
 def calculate_pixel_accuracy_per_class(predicted, target, num_classes):
@@ -57,12 +50,12 @@ def calculate_pixel_accuracy_per_class(predicted, target, num_classes):
     return class_pixel_accuracy.mean().item()
 
 
-def concat_class_channels(mask_labels, class_labels):
-    result = torch.zeros((mask_labels.shape[-2], mask_labels.shape[-1]), dtype=torch.int64)
-    for label, mask in zip(class_labels, mask_labels):
-        result[mask == 1] = label
+# def concat_class_channels(mask_labels, class_labels):
+#     result = torch.zeros((mask_labels.shape[-2], mask_labels.shape[-1]), dtype=torch.int64)
+#     for label, mask in zip(class_labels, mask_labels):
+#         result[mask == 1] = label
 
-    return result
+#     return result
 
 
 def evaluate(model, processor, val_dataloader, device, num_classes=36, void_label=255):
@@ -78,10 +71,8 @@ def evaluate(model, processor, val_dataloader, device, num_classes=36, void_labe
             total_val_loss += val_loss.item()
 
             # Assuming the model returns 'predictions' and 'targets'
-            predictions = processor.post_process_semantic_segmentation(outputs, target_sizes=[[512, 910]])[0]
-
-            # Extracting mask_labels and class_labels from val_batch
-            target = concat_class_channels(val_batch['mask_labels'][0], val_batch['class_labels'][0])
+            predictions = processor.post_process_semantic_segmentation(outputs, target_sizes=[[540, 960]])[0]
+            target = val_batch['target'][0]
 
             all_predictions.append(predictions.cpu())
             all_targets.append(target.cpu())
@@ -93,8 +84,7 @@ def evaluate(model, processor, val_dataloader, device, num_classes=36, void_labe
 
     mIoU = calculate_mIoU(all_predictions, all_targets, num_classes)
     panoptic_quality = calculate_panoptic_quality(all_predictions, all_targets, void_label)
-    pa = calculate_pixel_accuracy(all_predictions, all_targets)
     pac = calculate_pixel_accuracy_per_class(all_predictions, all_targets, num_classes)
     # average_precision_class = calculate_average_precision(all_predictions, all_targets, num_classes)
 
-    return avg_val_loss, mIoU, panoptic_quality, pa, pac
+    return avg_val_loss, mIoU, panoptic_quality, pac
