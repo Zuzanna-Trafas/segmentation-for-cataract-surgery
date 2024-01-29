@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.cuda.amp import autocast, GradScaler
 from datetime import datetime
 import argparse
 import wandb
@@ -21,13 +22,20 @@ parser.add_argument(
 parser.add_argument("--lr", type=float, help="Learning rate", default=5e-5)
 parser.add_argument("--epochs", type=int, help="Number of epochs", default=1)
 parser.add_argument("--batch_size", type=int, help="Batch size", default=1)
+parser.add_argument("--mixed_precision", type=bool, help="Mixed precision", default=False)
 args = parser.parse_args()
+
+# Create save path
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+save_dir = f"/home/data/cadis_results/trained_models/{args.model_name}_{timestamp}"
 
 training_params = {
   "model_name": args.model_name,
   "lr": args.lr,
   "epochs": args.epochs,
   "batch_size": args.batch_size,
+  "mixed_precision": args.mixed_precision,
+  "model_save_path": save_dir,
 }
 EVAL_STEPS = 100
 
@@ -62,6 +70,7 @@ val_dataloader = DataLoader(val_dataset, batch_size=training_params["batch_size"
 optimizer = AdamW(model.parameters(), lr=training_params["lr"])
 early_stopping = EarlyStopping(patience=1000, verbose=True)
 scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+scaler = GradScaler()
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -78,18 +87,29 @@ for epoch in range(training_params["epochs"]):  # loop over the dataset multiple
         batch.pop('target')
 
         # forward pass
-        outputs = model(**batch)
-
-        # backward pass + optimize
-        loss = outputs.loss
+        if args.mixed_precision:
+            with autocast():
+                outputs = model(**batch)
+                loss = outputs.loss
+                # Scale the loss to prevent underflow
+                scaler.scale(loss).backward()
+                # Unscales the gradients and calls optimizer.step()
+                scaler.step(optimizer)
+                # Updates the scale for next iteration
+                scaler.update()
+        else:
+            outputs = model(**batch)
+            loss = outputs.loss
+            loss.backward()
+            optimizer.step()
 
         wandb.log({"loss": loss})
-        loss.backward()
-        optimizer.step()
 
         if step % EVAL_STEPS == 0:  # Evaluate validation loss every eval_steps
+            model.eval()
             avg_val_loss, mIoU, panoptic_quality, pac = evaluate(model, processor, val_dataloader, device)
             wandb.log({"val_loss": avg_val_loss, "mIoU": mIoU, "panoptic_quality": panoptic_quality, "pixel accuracy per class": pac})
+            model.train()
             if early_stopping.should_stop(avg_val_loss):
                 break
 
@@ -97,8 +117,6 @@ for epoch in range(training_params["epochs"]):  # loop over the dataset multiple
 
 
 # Save the trained model
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-save_dir = f"trained_models/{training_params['model_name']}_{timestamp}"
 model_save_path = f"{save_dir}/model"
 model.save_pretrained(model_save_path)
 

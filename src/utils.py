@@ -1,3 +1,9 @@
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib import cm
+import torch
+
+
 class EarlyStopping:
     def __init__(self, patience=1000, delta=0, verbose=False):
         self.patience = patience
@@ -20,3 +26,19 @@ class EarlyStopping:
             self.best_loss = val_loss
             self.counter = 0
         return self.early_stop
+
+
+def save_segmentation(segmentation, processor, path):
+    viridis = cm.get_cmap('viridis', torch.max(segmentation))
+    # get all the unique numbers
+    labels_ids = torch.unique(segmentation).tolist()
+    print(labels_ids)
+    fig, ax = plt.subplots()
+    ax.imshow(segmentation)
+    handles = []
+    for label_id in labels_ids:
+        label = processor.image_processor.metadata[str(label_id)]
+        color = viridis(label_id)
+        handles.append(mpatches.Patch(color=color, label=label))
+    ax.legend(handles=handles)
+    plt.savefig(path)

@@ -1,6 +1,7 @@
 import torch
-from sklearn.metrics import average_precision_score
 import numpy as np
+
+from utils import save_segmentation
 
 
 def calculate_mIoU(predicted, target, num_classes):
@@ -27,19 +28,6 @@ def calculate_panoptic_quality(predicted, target, void_label):
         return 0.0
 
 
-# def calculate_average_precision(predictions, targets, num_classes):
-#     all_probabilities = torch.sigmoid(predictions)
-#     all_probabilities = all_probabilities[:, 1:]  # Remove background class if present
-
-#     targets = targets[:, 1:]  # Remove background class if present
-#     targets = targets.view(-1, num_classes - 1)
-
-#     all_probabilities = all_probabilities.view(-1, num_classes - 1)
-
-#     average_precision = average_precision_score(targets.numpy(), all_probabilities.numpy(), average='micro')
-#     return average_precision
-
-
 def calculate_pixel_accuracy_per_class(predicted, target, num_classes):
     class_pixel_accuracy = torch.zeros(num_classes)
     for cls in range(num_classes):
@@ -50,21 +38,12 @@ def calculate_pixel_accuracy_per_class(predicted, target, num_classes):
     return class_pixel_accuracy.mean().item()
 
 
-# def concat_class_channels(mask_labels, class_labels):
-#     result = torch.zeros((mask_labels.shape[-2], mask_labels.shape[-1]), dtype=torch.int64)
-#     for label, mask in zip(class_labels, mask_labels):
-#         result[mask == 1] = label
-
-#     return result
-
-
 def evaluate(model, processor, val_dataloader, device, num_classes=36, void_label=255):
-    model.eval()
     total_val_loss = 0.0
     all_predictions = []
     all_targets = []
     with torch.no_grad():
-        for val_batch in val_dataloader:
+        for i, val_batch in enumerate(val_dataloader):
             val_batch = {k: v.to(device) for k, v in val_batch.items()}
             target = val_batch.pop('target')[0]
 
@@ -72,7 +51,7 @@ def evaluate(model, processor, val_dataloader, device, num_classes=36, void_labe
             val_loss = outputs.loss
             total_val_loss += val_loss.item()
 
-            # Assuming the model returns 'predictions' and 'targets'
+            # TODO panoptic?
             predictions = processor.post_process_semantic_segmentation(outputs, target_sizes=[[540, 960]])[0]
 
             all_predictions.append(predictions.cpu())
@@ -86,6 +65,5 @@ def evaluate(model, processor, val_dataloader, device, num_classes=36, void_labe
     mIoU = calculate_mIoU(all_predictions, all_targets, num_classes)
     panoptic_quality = calculate_panoptic_quality(all_predictions, all_targets, void_label)
     pac = calculate_pixel_accuracy_per_class(all_predictions, all_targets, num_classes)
-    # average_precision_class = calculate_average_precision(all_predictions, all_targets, num_classes)
 
     return avg_val_loss, mIoU, panoptic_quality, pac

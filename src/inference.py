@@ -66,7 +66,7 @@ with torch.no_grad():
     outputs = model(**batch_)
 
 # postprocessing
-segmentation = processor.post_process_semantic_segmentation(outputs, target_sizes=[[512, 910]])[0]
+segmentation = processor.post_process_semantic_segmentation(outputs, target_sizes=[[540, 960]])[0]
 
 # Metrics
 iou_scores = calc_IoU(ground_truth_labels, segmentation)
