@@ -10,7 +10,7 @@
  
 # To run a script on the cluster, change CONDA_PATH and export WANDB_API_KEY
 ml cuda  # load default CUDA module
-CONDA_PATH=/home/guests/zuzanna_trafas/anaconda3
+CONDA_PATH=/home/guests/dominika_darabos/miniconda3
 source $CONDA_PATH/etc/profile.d/conda.sh
 conda activate oneformer
 python src/inference.py #--lr 0.005 --dataset cifar10 --dataroot data --cuda

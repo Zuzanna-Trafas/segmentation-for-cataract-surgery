@@ -48,7 +48,7 @@ class CustomDataset(Dataset):
                 inputs = self.processor(images=frame_image, segmentation_maps=label_image, task_inputs=["panoptic"], return_tensors="pt")
                 inputs = {k:v.squeeze() if isinstance(v, torch.Tensor) else v[0] for k,v in inputs.items()}
 
-                return inputs
+                return inputs, frame_image, label_image
 
             idx -= len(video_data['frames'])
 
