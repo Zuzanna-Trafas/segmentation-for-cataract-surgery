@@ -2,11 +2,14 @@ from transformers import AutoProcessor, AutoModelForUniversalSegmentation
 import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from datetime import datetime
 import argparse
 import wandb
 
 from custom_dataset import CustomDataset
+from utils import EarlyStopping
+from metrics import evaluate
 
 
 parser = argparse.ArgumentParser()
@@ -26,6 +29,7 @@ training_params = {
   "epochs": args.epochs,
   "batch_size": args.batch_size,
 }
+EVAL_STEPS = 100
 
 wandb.login()
 
@@ -49,51 +53,48 @@ model = AutoModelForUniversalSegmentation.from_pretrained(f"shi-labs/{training_p
 
 processor.image_processor.num_text = model.config.num_queries - model.config.text_encoder_n_ctx
 
-train_dataset = CustomDataset(processor, video_numbers=[1]) #[1,3,4,5,8,9,10,11,13,14,15,17,18,19,20,21,23,24,25]]
-val_dataset = CustomDataset(processor, video_numbers=[5]) #[5,7,16]
-test_dataset = CustomDataset(processor, video_numbers=[2]) #[2,12,22]
+train_dataset = CustomDataset(processor, video_numbers=[1,3,4,5]) #8,9,10,11,13,14,15,17,18,19,20,21,23,24,25
+val_dataset = CustomDataset(processor, video_numbers=[5,7,16])
 
 train_dataloader = DataLoader(train_dataset, batch_size=training_params["batch_size"], shuffle=True)
 val_dataloader = DataLoader(val_dataset, batch_size=training_params["batch_size"], shuffle=False)
-test_dataloader = DataLoader(test_dataset, batch_size=training_params["batch_size"], shuffle=False)
 
 optimizer = AdamW(model.parameters(), lr=training_params["lr"])
+early_stopping = EarlyStopping(patience=1000, verbose=True)
+scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-print("STARTING TRAINING")
 model.train()
 model.to(device)
 
 for epoch in range(training_params["epochs"]):  # loop over the dataset multiple times
-    for batch in train_dataloader:
+    for step, batch in enumerate(train_dataloader):
 
         # zero the parameter gradients
         optimizer.zero_grad()
 
         batch = {k:v.to(device) for k,v in batch.items()}
+        batch.pop('target')
 
         # forward pass
         outputs = model(**batch)
 
         # backward pass + optimize
         loss = outputs.loss
-        # TODO log other metrics
+
         wandb.log({"loss": loss})
         loss.backward()
         optimizer.step()
-      
-    # Validation loop
-    model.eval()
-    total_val_loss = 0.0
-    with torch.no_grad():
-        for val_batch in val_dataloader:
-            val_batch = {k: v.to(device) for k, v in val_batch.items()}
-            val_outputs = model(**val_batch)
-            val_loss = val_outputs.loss
-            total_val_loss += val_loss.item()
-    avg_val_loss = total_val_loss / len(val_dataloader)
-    wandb.log({"val_loss": avg_val_loss})
+
+        if step % EVAL_STEPS == 0:  # Evaluate validation loss every eval_steps
+            avg_val_loss, mIoU, panoptic_quality, pac = evaluate(model, processor, val_dataloader, device)
+            wandb.log({"val_loss": avg_val_loss, "mIoU": mIoU, "panoptic_quality": panoptic_quality, "pixel accuracy per class": pac})
+            if early_stopping.should_stop(avg_val_loss):
+                break
+
+    scheduler.step(avg_val_loss)
+
 
 # Save the trained model
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
