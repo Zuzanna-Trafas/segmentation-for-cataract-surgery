@@ -4,16 +4,27 @@ import numpy as np
 import os
 import torch
 
+from constants import DATA_DIR
 
-class CustomDataset(Dataset):
+
+class CadisDataset(Dataset):
+    """
+    Custom dataset class for semantic segmentation.
+
+    Args:
+        processor: The processor for pre-processing images and labels.
+        video_numbers (list): List of video numbers to include in the dataset.
+        experiment (int): Experiment number for label remapping.
+    """
     def __init__(self, processor, video_numbers=[1], experiment=None):
         self.processor = processor
         self.video_numbers = video_numbers
         self.experiment = experiment
-        self.root_dir = "/home/data/CaDISv2"
+        self.root_dir = DATA_DIR
         self.load_metadata()
 
     def load_metadata(self):
+        """Load metadata for the dataset."""
         self.video_metadata = []
 
         for video_number in self.video_numbers:
@@ -75,6 +86,7 @@ class CustomDataset(Dataset):
         return label
 
     def __getitem__(self, idx):
+        """Return next frame by index"""
         for video_data in self.video_metadata:
             if idx < len(video_data['frames']):
                 frame_data = video_data['frames'][idx]
@@ -83,6 +95,7 @@ class CustomDataset(Dataset):
                 frame_image = np.array(Image.open(frame_path))
                 label_image = np.array(Image.open(label_path))
 
+                # Remap labels if needed
                 if self.experiment == 1:
                     label_image = self.remap_experiment1(label_image)
                 elif self.experiment == 2:
@@ -90,6 +103,7 @@ class CustomDataset(Dataset):
                 elif self.experiment == 3:
                     label_image = self.remap_experiment3(label_image)
 
+                # Map the image and label to the form needed by the model
                 inputs = self.processor(images=frame_image, segmentation_maps=label_image, task_inputs=["panoptic"], return_tensors="pt")
                 inputs = {k:v.squeeze() if isinstance(v, torch.Tensor) else v[0] for k,v in inputs.items()}
 

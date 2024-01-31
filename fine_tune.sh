@@ -14,6 +14,6 @@ CONDA_PATH=/home/guests/zuzanna_trafas/anaconda3
 source $CONDA_PATH/etc/profile.d/conda.sh
 conda activate oneformer
 wandb login $WANDB_API_KEY 
-python src/fine_tune.py --lr 0.000005 --epochs 1 #--model_name oneformer_coco_swin_large #--mixed_precision True
+python src/fine_tune.py --experiment 3 --lr 0.000005 --epochs 1 #--model_name oneformer_coco_swin_large #--mixed_precision True
 ml -cuda  # unload all modules
 conda deactivate
