@@ -1,0 +1,10 @@
+{
+    "0": {"isthing": 0, "name": "Pupil"},
+    "1": {"isthing": 0, "name": "Surgical Tape"},
+    "2": {"isthing": 0, "name": "Hand"},
+    "3": {"isthing": 0, "name": "Eye Retractors"},
+    "4": {"isthing": 0, "name": "Iris"},
+    "5": {"isthing": 0, "name": "Skin"},
+    "6": {"isthing": 0, "name": "Cornea"},
+    "7": {"isthing": 0, "name": "Instrument"}
+  }

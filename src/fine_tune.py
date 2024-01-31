@@ -7,17 +7,19 @@ from torch.cuda.amp import autocast, GradScaler
 from datetime import datetime
 import argparse
 import wandb
+import json
 
 from custom_dataset import CustomDataset
-from utils import EarlyStopping
+from utils import EarlyStopping, prepare_metadata
 from metrics import evaluate, test
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--experiment", type=int, help="Experiment number [1,2,3]", default=None)
 parser.add_argument(
     "--model_name",
     help="Name of the model from HuggingFace model hub",
-    default="oneformer_ade20k_swin_tiny"#"oneformer_coco_swin_large"
+    default="oneformer_ade20k_swin_tiny"
 )
 parser.add_argument("--lr", type=float, help="Learning rate", default=5e-5)
 parser.add_argument("--epochs", type=int, help="Number of epochs", default=1)
@@ -30,6 +32,7 @@ timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 save_dir = f"/home/data/cadis_results/trained_models/{args.model_name}_{timestamp}"
 
 training_params = {
+  "experiment": args.experiment,
   "model_name": args.model_name,
   "lr": args.lr,
   "epochs": args.epochs,
@@ -49,23 +52,20 @@ run = wandb.init(
 )
 
 processor = AutoProcessor.from_pretrained(f"shi-labs/{training_params['model_name']}")
-"""
- TODO the previous line might automatically cache
- /home/guests/<user>/.cache/huggingface/hub/datasets--shi-labs--oneformer_demo/snapshots/4d683bd5bf84e9c8b5537dce306230bde409fe89/coco_panoptic.json
-the contents of the file need to be replaced with contents of data/class_info.json if that happens
-"""
-processor.image_processor.class_info_file = 'class_info.json'
-processor.image_processor.repo_path = 'ztrafas/segmentation-for-cataract-surgery'
+# replace class mapping based on the experiment
+with open(f"data/class_info/class_info_experiment{training_params['experiment']}.json", "r") as f:
+    class_info = json.load(f)
+processor.metadata = prepare_metadata(class_info)
 
 model = AutoModelForUniversalSegmentation.from_pretrained(f"shi-labs/{training_params['model_name']}", is_training=True) 
 
 processor.image_processor.num_text = model.config.num_queries - model.config.text_encoder_n_ctx
 
-train_dataset = CustomDataset(processor, video_numbers=[1]) #3,4,5,8,9,10,11,13,14,15,17,18,19,20,21,23,24,25
-val_dataset = CustomDataset(processor, video_numbers=[5]) #,7,16])
-test_dataset = CustomDataset(processor, video_numbers=[2])
+train_dataset = CustomDataset(processor, video_numbers=[1], experiment=training_params['experiment']) #3,4,5,8,9,10,11,13,14,15,17,18,19,20,21,23,24,25
+val_dataset = CustomDataset(processor, video_numbers=[5], experiment=training_params['experiment']) #,7,16])
+test_dataset = CustomDataset(processor, video_numbers=[2], experiment=training_params['experiment'])
 
-train_dataloader = DataLoader(train_dataset, batch_size=training_params["batch_size"], shuffle=True)
+train_dataloader = DataLoader(train_dataset, batch_size=training_params['batch_size'], shuffle=True)
 val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False)
 test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 

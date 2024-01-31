@@ -1,0 +1,21 @@
+{
+    "0": {"isthing": 0, "name": "Pupil"},
+    "1": {"isthing": 0, "name": "Surgical Tape"},
+    "2": {"isthing": 0, "name": "Hand"},
+    "3": {"isthing": 0, "name": "Eye Retractors"},
+    "4": {"isthing": 0, "name": "Iris"},
+    "5": {"isthing": 0, "name": "Skin"},
+    "6": {"isthing": 0, "name": "Cornea"},
+    "7": {"isthing": 0, "name": "Cannula"},
+    "8": {"isthing": 0, "name": "Cannula"},
+    "9": {"isthing": 0, "name": "Cap. Cystotome"},
+    "10": {"isthing": 0, "name": "Tissue Forceps"},
+    "11": {"isthing": 1, "name": "Primary Knife"},
+    "12": {"isthing": 1, "name": "Ph. Handpiece"},
+    "13": {"isthing": 1, "name": "Lens Injector"},
+    "14": {"isthing": 1, "name": "I/A Handpiece"},
+    "15": {"isthing": 1, "name": "Secondary Knife"},
+    "16": {"isthing": 1, "name": "Micromanipulator"},
+    "17": {"isthing": 1, "name": "Cap. Forceps"},
+    "255": {"isthing": 1, "name": "Ignore"}
+}
