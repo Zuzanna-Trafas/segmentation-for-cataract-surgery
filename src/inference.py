@@ -9,40 +9,25 @@ import torch
 import os
 
 from custom_dataset import CustomDataset
-
-def calc_IoU(ground_truth, prediction):
-    unique_classes = torch.unique(torch.concat((ground_truth, prediction)))
-    iou_scores = []
-    # Calculate IoU for each class
-    for class_id in unique_classes:
-        # binary mask for current class
-        ground_truth_mask = (ground_truth == class_id)
-        predicted_mask = (prediction == class_id)
-
-        # intersection and union
-        intersection = np.logical_and(predicted_mask, ground_truth_mask).sum()
-        union = np.logical_or(predicted_mask, ground_truth_mask).sum()
-
-        if union != 0:
-            iou = intersection / union
-            iou_scores.append(iou)
-    return iou_scores
+from metrics import calculate_mIoU, test
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--path",
-    help="Path to the folder with saved model",
+    "--model_folder_name",
+    help="Folder name where the model and processor are saved",
     default="/home/guests/dominika_darabos/segmentation-for-cataract-surgery/trained_models/oneformer_ade20k_swin_tiny_20240109_175317"
 )
 args = parser.parse_args()
 
+model_path = f"/home/data/cadis_results/trained_models/{args.model_folder_name}"
+
 # Load the processor
-processor_save_path = os.path.join(args.path, "processor")
+processor_save_path = os.path.join(model_path, "processor")
 processor = AutoProcessor.from_pretrained(processor_save_path)
 
 # Load the model
-model_save_path = os.path.join(args.path, "model")
+model_save_path = os.path.join(model_path, "model")
 model = AutoModelForUniversalSegmentation.from_pretrained(model_save_path, is_training=False)
 
 model.eval()
@@ -69,11 +54,7 @@ with torch.no_grad():
 segmentation = processor.post_process_semantic_segmentation(outputs, target_sizes=[[540, 960]])[0]
 
 # Metrics
-iou_scores = calc_IoU(ground_truth_labels, segmentation)
-mean_iou = np.mean(iou_scores) if iou_scores else 0
-
-print("IoU values: ", iou_scores)
-print("mIoU values: ", mean_iou)
+miou = calculate_mIoU(segmentation, ground_truth_labels)
 
 # draw the segmentatin
 viridis = cm.get_cmap('viridis', torch.max(torch.max(segmentation), torch.max(ground_truth_labels)))
@@ -91,6 +72,8 @@ axs[1].set_title("Ground Truth")
 # third plot
 axs[2].imshow(segmentation)
 axs[2].set_title("Predicted Segmentation")
+# Annotate with mIoU value
+axs[2].text(0.5, -0.2, f"mIoU: {miou:.4f}", fontsize=12, ha='center', transform=axs[2].transAxes)
 
 # get all the unique numbers and labels
 unique_patches = {}
@@ -105,4 +88,9 @@ for label_id in list(set(ground_truth_labels_ids + labels_ids)):
 handles = list(unique_patches.values())
 fig.legend(handles=handles, loc='upper center', ncol=len(handles)//2, bbox_to_anchor=(0.5, 0.95))
 plt.tight_layout()
-plt.savefig(f'samples/sample_segmentation_{args.path.split("/")[-1]}.png')
+plt.savefig(f'samples/sample_segmentation_{args.model_folder_name}.png')
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model.to(device)
+mIoU, panoptic_quality, pac = test(model, processor, test_dataloader, device)
+print(f"mIoU: {mIoU:.4f}, panoptic quality: {panoptic_quality:.4f}, pixel accuracy per class: {pac:.4f}")

@@ -10,7 +10,7 @@ import wandb
 
 from custom_dataset import CustomDataset
 from utils import EarlyStopping
-from metrics import evaluate
+from metrics import evaluate, test
 
 
 parser = argparse.ArgumentParser()
@@ -61,11 +61,13 @@ model = AutoModelForUniversalSegmentation.from_pretrained(f"shi-labs/{training_p
 
 processor.image_processor.num_text = model.config.num_queries - model.config.text_encoder_n_ctx
 
-train_dataset = CustomDataset(processor, video_numbers=[1,3,4,5]) #8,9,10,11,13,14,15,17,18,19,20,21,23,24,25
-val_dataset = CustomDataset(processor, video_numbers=[5,7,16])
+train_dataset = CustomDataset(processor, video_numbers=[1]) #3,4,5,8,9,10,11,13,14,15,17,18,19,20,21,23,24,25
+val_dataset = CustomDataset(processor, video_numbers=[5]) #,7,16])
+test_dataset = CustomDataset(processor, video_numbers=[2])
 
 train_dataloader = DataLoader(train_dataset, batch_size=training_params["batch_size"], shuffle=True)
-val_dataloader = DataLoader(val_dataset, batch_size=training_params["batch_size"], shuffle=False)
+val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False)
+test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
 optimizer = AdamW(model.parameters(), lr=training_params["lr"])
 early_stopping = EarlyStopping(patience=1000, verbose=True)
@@ -77,14 +79,12 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model.train()
 model.to(device)
 
-for epoch in range(training_params["epochs"]):  # loop over the dataset multiple times
-    for step, batch in enumerate(train_dataloader):
+for epoch in range(training_params["epochs"]):
+    for step, (batch, _, _) in enumerate(train_dataloader):
 
-        # zero the parameter gradients
         optimizer.zero_grad()
 
         batch = {k:v.to(device) for k,v in batch.items()}
-        batch.pop('target')
 
         # forward pass
         if args.mixed_precision:
@@ -115,7 +115,6 @@ for epoch in range(training_params["epochs"]):  # loop over the dataset multiple
 
     scheduler.step(avg_val_loss)
 
-
 # Save the trained model
 model_save_path = f"{save_dir}/model"
 model.save_pretrained(model_save_path)
@@ -136,3 +135,6 @@ artifact = wandb.Artifact(
 artifact.add_dir(model_save_path)
 artifact.add_file(f"{save_dir}/optimizer.pth")
 wandb.log_artifact(artifact)
+
+mIoU, panoptic_quality, pac = test(model, processor, test_dataloader, device, drop_text_model=False)
+wandb.log({"test_mIoU": mIoU, "test_panoptic_quality": panoptic_quality, "test_pixel accuracy per class": pac})
