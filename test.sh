@@ -1,8 +1,8 @@
 #!/bin/sh
  
-#SBATCH --job-name=inference-onformer
-#SBATCH --output=inference-onformer.out  # Standard output of the script (Can be absolute or relative path). %A adds the job id to the file name so you can launch the same script multiple times and get different logging files
-#SBATCH --error=inference-onformer.err  # Standard error of the script
+#SBATCH --job-name=test-onformer
+#SBATCH --output=test-onformer.out  # Standard output of the script (Can be absolute or relative path). %A adds the job id to the file name so you can launch the same script multiple times and get different logging files
+#SBATCH --error=test-onformer.err  # Standard error of the script
 #SBATCH --time=0-12:00:00  # Limit on the total run time (format: days-hours:minutes:seconds)
 #SBATCH --gres=gpu:1  # Number of GPUs if needed RTX3090
 #SBATCH --cpus-per-task=2  # Number of CPUs (Don't use more than 12/6 per GPU)
@@ -13,6 +13,6 @@ ml cuda  # load default CUDA module
 CONDA_PATH=/home/guests/zuzanna_trafas/anaconda3
 source $CONDA_PATH/etc/profile.d/conda.sh
 conda activate oneformer
-python src/inference.py --model_folder_name oneformer_coco_swin_large_20240202_175244/model_checkpoint_9_400 --save_name driven-monkey-81
+python src/test.py --model_folder_name oneformer_coco_swin_large_20240203_232227/model_checkpoint_2_800
 ml -cuda  # unload all modules
 conda deactivate

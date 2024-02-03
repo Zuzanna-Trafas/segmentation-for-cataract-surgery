@@ -16,6 +16,12 @@ parser.add_argument(
     help="Folder name where the model and processor are saved",
     default="oneformer_coco_swin_large_20240130_125029",
 )
+parser.add_argument(
+    "--save_name",
+    help="Name by which will be saved",
+    default=None,
+    type=str,
+)
 args = parser.parse_args()
 
 model_path = f"/home/data/cadis_results/trained_models/{args.model_folder_name}"
@@ -56,4 +62,9 @@ segmentation = processor.post_process_semantic_segmentation(
 # Metrics
 miou = calculate_mIoU(segmentation, ground_truth_labels)
 
-save_segmentation(original_image, ground_truth_labels, segmentation, miou, processor, f"samples/sample_segmentation_{args.model_folder_name}.png")
+if args.save_name:
+    save_path = f"samples/sample_segmentation_{args.save_name}.png"
+else:
+    save_path = f"samples/sample_segmentation_{args.model_folder_name}.png" 
+
+save_segmentation(original_image, ground_truth_labels, segmentation, miou, processor, save_path)

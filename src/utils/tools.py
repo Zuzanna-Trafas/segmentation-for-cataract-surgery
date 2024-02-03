@@ -83,3 +83,25 @@ def prepare_metadata(experiment):
     metadata["thing_ids"] = thing_ids
     metadata["class_names"] = class_names
     return metadata
+
+
+def save_checkpoint(model, processor, optimizer, path):
+    """
+    Save model to the given path.
+
+    Args:
+        model: Model to save.
+        processor: Processor to save.
+        optimizer: Optimizer to save.
+        path (str): Path to save the model.
+    """
+    # Save the trained model
+    model_save_path = f"{path}/model"
+    model.save_pretrained(model_save_path)
+
+    # Save the processor
+    processor_save_path = f"{path}/processor"
+    processor.save_pretrained(processor_save_path)
+
+    # Save other relevant information
+    torch.save(optimizer.state_dict(), f"{path}/optimizer.pth")

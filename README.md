@@ -7,7 +7,7 @@ Project as part of Computational Surgineering at TUM. The project goals are:
 - Tracking of instruments to perform Economy of Motion statistics calculation
 
 ## How to run
-To fine-tune the model on the IFL cluster (or using any SLURM cluster), redefine CONDA_PATH, environment, and WANDB_API_KEY in `run.sh`. Specify training parameters from the following:
+To fine-tune the model on the IFL cluster redefine CONDA_PATH, environment, and WANDB_API_KEY in `fine_tune.sh`. Specify training parameters from the following:
 
 - --experiment: Experiment number [1,2,3] (default: None, no task remapping is applied)
 - --model_name: Name of the model from HuggingFace model hub (default: "oneformer_ade20k_swin_tiny")
@@ -16,4 +16,4 @@ To fine-tune the model on the IFL cluster (or using any SLURM cluster), redefine
 - --batch_size: Batch size (default: 1)
 - --mixed_precision: Whether mixed precision is applied for training (default: False)
 
-And run `sbatch run.sh`
+And run `sbatch fine_tune.sh`

@@ -1,5 +1,5 @@
 import torch
-from eval.metrics import calculate_mIoU, calculate_panoptic_quality, calculate_pixel_accuracy_per_class
+from eval.metrics import calculate_mIoU, calculate_mIoU_by_type, calculate_panoptic_quality, calculate_pixel_accuracy_per_class
 
 
 def evaluate(model, processor, val_dataloader, device):
@@ -84,7 +84,8 @@ def test(model, processor, test_dataloader, device):
     all_targets = torch.cat(all_targets, dim=0)
 
     mIoU = calculate_mIoU(all_predictions, all_targets)
+    mIoU_anatomy, mIoU_instruments = calculate_mIoU_by_type(all_predictions, all_targets)
     panoptic_quality = calculate_panoptic_quality(all_predictions, all_targets)
     pac = calculate_pixel_accuracy_per_class(all_predictions, all_targets)
 
-    return mIoU, panoptic_quality, pac
+    return mIoU, mIoU_anatomy, mIoU_instruments, panoptic_quality, pac

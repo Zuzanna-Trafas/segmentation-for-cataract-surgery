@@ -82,7 +82,7 @@ class CadisDataset(Dataset):
 
     def remap_experiment3(self, label):
         mask = np.logical_and(label >= 25, label <= 35)
-        label[mask] = 255
+        label[mask] = 25
         return label
 
     def __getitem__(self, idx):

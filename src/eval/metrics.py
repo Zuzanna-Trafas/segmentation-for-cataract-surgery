@@ -25,6 +25,41 @@ def calculate_mIoU(predicted, target):
         return 0.0
     else:
         return np.mean(ious)
+    
+
+
+def calculate_mIoU_by_type(predicted, target):
+    """
+    Calculate the mean Intersection over Union (mIoU) metric for anatomy and instruments.
+
+    Args:
+        predicted (torch.Tensor): Predicted segmentation map.
+        target (torch.Tensor): Ground truth segmentation map.
+
+    Returns:
+        float: The mean Intersection over Union (mIoU) score for anatomy.
+        float: The mean Intersection over Union (mIoU) score for instruments.
+    """
+    iou_anatomy = []
+    iou_instruments = []
+    for cls in torch.unique(target):
+        if cls in [0, 4, 5, 6]:  # Anatomy classes
+            intersection = ((predicted == cls) & (target == cls)).sum().item()
+            union = ((predicted == cls) | (target == cls)).sum().item()
+            if union != 0:
+                iou = intersection / union
+                iou_anatomy.append(iou)
+        elif cls not in [1, 2, 3]:  # Instrument classes
+            intersection = ((predicted == cls) & (target == cls)).sum().item()
+            union = ((predicted == cls) | (target == cls)).sum().item()
+            if union != 0:
+                iou = intersection / union
+                iou_instruments.append(iou)
+
+    mean_iou_anatomy = np.mean(iou_anatomy) if len(iou_anatomy) != 0 else 0.0
+    mean_iou_instruments = np.mean(iou_instruments) if len(iou_instruments) != 0 else 0.0
+
+    return mean_iou_anatomy, mean_iou_instruments
 
 
 def calculate_panoptic_quality(predicted, target, void_label=-1):

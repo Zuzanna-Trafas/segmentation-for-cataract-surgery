@@ -7,11 +7,12 @@ from datetime import datetime
 import torch
 import argparse
 import wandb
+import os
 
 from constants import MODEL_SAVE_DIR, EVAL_STEPS
 from cadis_dataset import CadisDataset
 from utils.early_stopping import EarlyStopping
-from utils.tools import prepare_metadata
+from utils.tools import prepare_metadata, save_checkpoint
 from eval.evaluation import evaluate
 
 
@@ -70,17 +71,17 @@ processor.image_processor.num_text = (
 # Load the datasets
 train_dataset = CadisDataset(
     processor, 
-    video_numbers=[1], #,3,4,5,8,9,10,11,13,14,15,17,18,19,20,21,23,24,25], 
+    video_numbers=[1,3,4,5,8,9,10,11,13,14,15,17,18,19,20,21,23,24,25],
     experiment=training_params["experiment"]
 )
 val_dataset = CadisDataset(
     processor, 
-    video_numbers=[5], #,7,16], 
+    video_numbers=[6,7,16], 
     experiment=training_params["experiment"]
 )
 test_dataset = CadisDataset(
     processor, 
-    video_numbers=[2], 
+    video_numbers=[2,12,22], 
     experiment=training_params["experiment"]
 )
 
@@ -93,8 +94,8 @@ test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
 # Initialize optimizer, scheduler, and early stopping
 optimizer = AdamW(model.parameters(), lr=training_params["lr"])
-early_stopping = EarlyStopping(patience=1000, verbose=True)
-scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=500)
+early_stopping = EarlyStopping(patience=1000)
+scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=2000)
 scaler = GradScaler() # for mixed precision training
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -102,6 +103,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model.train()
 model.to(device)
 
+best_val_loss = float('inf')
 for epoch in range(training_params["epochs"]):
     for step, (batch, _, _) in enumerate(train_dataloader):
         optimizer.zero_grad()
@@ -122,7 +124,8 @@ for epoch in range(training_params["epochs"]):
             optimizer.step()
 
         scheduler.step(loss) # decrease lr if conditions are met
-        wandb.log({"loss": loss})
+        current_lr = optimizer.param_groups[0]['lr']
+        wandb.log({"loss": loss, "lr": current_lr})
 
         if step % EVAL_STEPS == 0:  # Evaluate validation loss every EVAL_STEPS
             model.eval()
@@ -138,30 +141,16 @@ for epoch in range(training_params["epochs"]):
                 }
             )
             model.train()
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                # Save the model checkpoint
+                checkpoint_path = os.path.join(save_dir, f"model_checkpoint_{epoch + 1}_{step}")
+                save_checkpoint(model, processor, optimizer, checkpoint_path)
             if early_stopping.should_stop(val_loss):
                 break
 
 
-# Save the trained model
-model_save_path = f"{save_dir}/model"
-model.save_pretrained(model_save_path)
-
-# Save the processor
-processor_save_path = f"{save_dir}/processor"
-processor.save_pretrained(processor_save_path)
-
-# Save other relevant information
-torch.save(optimizer.state_dict(), f"{save_dir}/optimizer.pth")
-
-# Log the saved model and other files to wand
-artifact = wandb.Artifact(
-    name=f"{training_params['model_name']}_{timestamp}",
-    type="model",
-    description=f"Trained model for {training_params['model_name']} at epoch {epoch + 1}",
-)
-artifact.add_dir(model_save_path)
-artifact.add_file(f"{save_dir}/optimizer.pth")
-wandb.log_artifact(artifact)
+save_checkpoint(model, processor, optimizer, save_dir)
 
 # Test the model
 test_loss, mIoU, panoptic_quality, pac = evaluate(
