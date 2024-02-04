@@ -13,6 +13,6 @@ ml cuda  # load default CUDA module
 CONDA_PATH=/home/guests/dominika_darabos/miniconda3
 source $CONDA_PATH/etc/profile.d/conda.sh
 conda activate oneformer
-python src/batch_segmentation.py --model_folder_name oneformer_coco_swin_large_20240130_125029 --output_dir /home/guests/dominika_darabos/segmentation-for-cataract-surgery/samples/video_sample/
+python src/batch_segmentation.py --model_folder_name oneformer_coco_swin_large_20240203_232227/model_checkpoint_2_800
 ml -cuda  # unload all modules
 conda deactivate
