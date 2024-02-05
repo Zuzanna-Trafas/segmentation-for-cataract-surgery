@@ -81,10 +81,11 @@ def tracking(tool_ind=0, path="/home/data/CaDISv2/Video01/Labels", output="/home
         M = cv2.moments(binary_image)
 
         # Calculate x, y coordinate of center
-        x = int(M["m10"] / M["m00"])
-        y = int(M["m01"] / M["m00"])
-        centroid_x[i] = x
-        centroid_y[i] = y
+        if moments['m00'] != 0:
+            x = int(M["m10"] / M["m00"])
+            y = int(M["m01"] / M["m00"])
+            centroid_x[i] = x
+            centroid_y[i] = y
 
         '''
         # Find contours in the binary mask
