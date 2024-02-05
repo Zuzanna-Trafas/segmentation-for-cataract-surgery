@@ -62,8 +62,6 @@ def handle_discontinuity(x, y):
 def tracking(tool_ind=0, path="/home/data/CaDISv2/Video01/Labels", output="/home/guests/nguyentoan_le/Praktikum",
              plot_name='Trajectory.png'):
     threshold_value = tool_ind
-
-    output_path = '/home/guests/nguyentoan_le/Praktikum/output'
     
     # Load two images
     image_name = sorted(os.listdir(path), key=natural_key)
@@ -73,7 +71,7 @@ def tracking(tool_ind=0, path="/home/data/CaDISv2/Video01/Labels", output="/home
     # Initialize Centroids
     centroid_x = -1 * np.ones((len(images),))
     centroid_y = -1 * np.ones((len(images),))
-
+    imp = []
     for i, image in enumerate(images):
         # Apply threshold
         binary_image = np.zeros_like(image)
@@ -90,22 +88,20 @@ def tracking(tool_ind=0, path="/home/data/CaDISv2/Video01/Labels", output="/home
             if moments['m00'] != 0:
                 x = int(moments['m10'] / moments['m00'])
                 y = int(moments['m01'] / moments['m00'])
-                if i > 5:
-                    centroid_x[i + 1] = x
-                    centroid_y[i + 1] = y
-                else:
-                    centroid_x[i] = x
-                    centroid_y[i] = y
-                
+                centroid_x[i] = x
+                centroid_y[i] = y
+                imp.append(image_name[i])
                 # Highlight centroid on the original image
-                cv2.circle(images[i], (x, y), 5, (255, 255, 255), -1)  # Draw a white circle
-                cv2.imwrite(os.path.join(output_path, image_name[i]), images[i])
+                #cv2.circle(images[i], (x, y), 5, (255, 255, 255), -1)  # Draw a white circle
+                #cv2.imwrite(os.path.join(output_path, image_name[i]), images[i])
                 #cv2.circle(binary_image1, (centroid_x, centroid_y), 5, (255, 255, 255), -1)  # Draw a white circle
 
-    '''            
-    for x, y in zip(centroid_x, centroid_y):
-        print(x, y)
     '''
+    for i, (x, y) in enumerate(zip(centroid_x, centroid_y)):
+        if x != -1:
+            print(i, x, y)
+    '''
+    #print(imp)
     centroid_x, centroid_y = handle_discontinuity(centroid_x, centroid_y)
 
     fig, ax = plt.subplots()
@@ -137,4 +133,13 @@ if __name__ == "__main__":
 
     assert os.path.isdir(args.segmentation), f"{args.segmentation} directory does not exist"
 
-    tracking(tool_ind=int(args.object_id), path=args.segmentation, output=args.output, plot_name=args.name_trajectory)
+    if int(args.object_id) != -1:
+        tracking(tool_ind=int(args.object_id), path=args.segmentation, output=args.output,
+                 plot_name=args.name_trajectory)
+    else:
+        for i in range(36):
+            s = args.name_trajectory.split(".")
+            s[0] = s[0] + str(i)
+            name = ".".join(s)
+            tracking(tool_ind=int(i), path=args.segmentation, output=args.output,
+                     plot_name=name)
