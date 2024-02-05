@@ -6,6 +6,7 @@ import argparse
 import torch
 import os
 from PIL import Image
+import numpy as np
 
 
 parser = argparse.ArgumentParser()
@@ -48,5 +49,5 @@ for video_num in [2, 12, 22]:
         # Postprocessing
         segmentation = processor.post_process_semantic_segmentation(outputs, target_sizes=[[540, 960]])[0]
         filename = os.path.join(args.output_dir, f'seg_{video_num}_{i}.png')
-        segmentation_image = Image.fromarray(segmentation)
+        segmentation_image = Image.fromarray(segmentation.cpu().numpy().astype(np.uint8))
         segmentation_image.save(filename)
