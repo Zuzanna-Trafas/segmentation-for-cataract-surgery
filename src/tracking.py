@@ -71,12 +71,22 @@ def tracking(tool_ind=0, path="/home/data/CaDISv2/Video01/Labels", output="/home
     # Initialize Centroids
     centroid_x = -1 * np.ones((len(images),))
     centroid_y = -1 * np.ones((len(images),))
-    imp = []
+    #imp = []
     for i, image in enumerate(images):
         # Apply threshold
         binary_image = np.zeros_like(image)
         binary_image[image == threshold_value] = 255
 
+        # Calculate moments of binary image
+        M = cv2.moments(binary_image)
+
+        # Calculate x, y coordinate of center
+        x = int(M["m10"] / M["m00"])
+        y = int(M["m01"] / M["m00"])
+        centroid_x[i] = x
+        centroid_y[i] = y
+
+        '''
         # Find contours in the binary mask
         contours_image, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if len(contours_image) >= 1:
@@ -90,12 +100,12 @@ def tracking(tool_ind=0, path="/home/data/CaDISv2/Video01/Labels", output="/home
                 y = int(moments['m01'] / moments['m00'])
                 centroid_x[i] = x
                 centroid_y[i] = y
-                imp.append(image_name[i])
+                #imp.append(image_name[i])
                 # Highlight centroid on the original image
                 #cv2.circle(images[i], (x, y), 5, (255, 255, 255), -1)  # Draw a white circle
                 #cv2.imwrite(os.path.join(output_path, image_name[i]), images[i])
                 #cv2.circle(binary_image1, (centroid_x, centroid_y), 5, (255, 255, 255), -1)  # Draw a white circle
-
+        '''
     '''
     for i, (x, y) in enumerate(zip(centroid_x, centroid_y)):
         if x != -1:
