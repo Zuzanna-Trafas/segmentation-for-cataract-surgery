@@ -3,6 +3,24 @@ import matplotlib.patches as mpatches
 from matplotlib import cm
 import torch
 import json
+from utils.cadis_visualization import get_cadis_colormap
+import numpy as np
+from matplotlib.colors import ListedColormap
+
+def apply_custom_colormap(binary, colormap):
+    # segmentation is 2D (H, W) instead of 3D (C, H, W)
+    if binary.ndim == 2:
+        binary = binary.unsqueeze(0)  # Add C dim
+
+    # base image with the same width and height as our segmentation mask
+    height, width = binary.shape[1], binary.shape[2]
+    colored_segmentation = np.zeros((height, width, 3), dtype=np.uint8)
+
+    for label_index, color in enumerate(colormap):
+        mask = binary[0] == label_index
+        colored_segmentation[mask] = color
+
+    return colored_segmentation
 
 
 def save_segmentation(original_image, ground_truth_labels, segmentation, miou, processor, path):
@@ -18,9 +36,8 @@ def save_segmentation(original_image, ground_truth_labels, segmentation, miou, p
         path (str): Path to save the visualization.
 
     """
-    viridis = cm.get_cmap(
-        "viridis", torch.max(torch.max(segmentation), torch.max(ground_truth_labels))
-    )
+    colormap = get_cadis_colormap()
+    custom_cmap = ListedColormap(colormap / 255.5)
     fig, axs = plt.subplots(1, 3, figsize=(18, 6))
 
     # first plot
@@ -29,11 +46,13 @@ def save_segmentation(original_image, ground_truth_labels, segmentation, miou, p
     axs[0].set_title("Original Image")
 
     # second plot
-    axs[1].imshow(ground_truth_labels)
+    colored_ground_truth_labels = apply_custom_colormap(ground_truth_labels, colormap)
+    axs[1].imshow(colored_ground_truth_labels)
     axs[1].set_title("Ground Truth")
 
     # third plot
-    axs[2].imshow(segmentation)
+    colored_segmentation = apply_custom_colormap(segmentation, colormap)
+    axs[2].imshow(colored_segmentation)
     axs[2].set_title("Predicted Segmentation")
     # Annotate with mIoU value
     axs[2].text(
@@ -46,7 +65,7 @@ def save_segmentation(original_image, ground_truth_labels, segmentation, miou, p
     ground_truth_labels_ids = torch.unique(ground_truth_labels).tolist()
     for label_id in list(set(ground_truth_labels_ids + labels_ids)):
         label = processor.image_processor.metadata[str(label_id)]
-        color = viridis(label_id)
+        color = custom_cmap(label_id)
         if label not in unique_patches:
             unique_patches[label] = mpatches.Patch(color=color, label=label)
 
@@ -56,6 +75,7 @@ def save_segmentation(original_image, ground_truth_labels, segmentation, miou, p
         loc="upper center",
         ncol=len(handles) // 2,
         bbox_to_anchor=(0.5, 0.95),
+        edgecolor='black',
     )
     plt.tight_layout()
     plt.savefig(path)
