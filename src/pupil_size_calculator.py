@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import os
 import re
+import argparse
 
 class PupilSizeCalculator:
      def __init__(self, threshold):
@@ -12,6 +13,7 @@ class PupilSizeCalculator:
           self.previous_pupil_size = None
           self.previous_file_path = None
           self.change_counter = 0
+          self.processed_counter = 0
      
 
      ######### Getters and setters ######### 
@@ -37,8 +39,14 @@ class PupilSizeCalculator:
      def get_change_counter(self):
           return self.change_counter
 
-     def increase_counter(self):
+     def increase_change_counter(self):
           self.change_counter += 1
+
+     def get_processed_counter(self):
+          return self.processed_counter
+
+     def increase_processed_counter(self):
+          self.processed_counter += 1
 
      ####################################### 
 
@@ -86,7 +94,8 @@ class PupilSizeCalculator:
                height = bottommost[1] - topmost[1]
 
                bounding_rect = (leftmost[0], topmost[1], width, height)
-          return bounding_rect
+               edge_points = (leftmost, topmost, rightmost, bottommost)
+          return bounding_rect, edge_points
 
      def calculate_width(self,image_path):
           """
@@ -94,7 +103,7 @@ class PupilSizeCalculator:
           Returns nones if pupil is not found, or not the full pupil is detected on the image.
           """
           recording, pupil_mask = self.convert_image(image_path)
-          x,y,w,h = self.get_pupil_contour(recording)
+          (x,y,w,h),(leftmost, topmost, rightmost, bottommost) = self.get_pupil_contour(recording)
           #if it is not near to a rounded shape
           if w < 0.80*h or h < 0.80*w:
                # if the edge of the bounding box is exactly on the edge of the image shape, the pupil is probably not full on the image
@@ -102,19 +111,35 @@ class PupilSizeCalculator:
                     return None
           return w
 
-     def save_pupil_mask(self, file_path, img_path):
+     def save_pupil_mask(self, file_path, img_path, width, color):
           """
           Save the image for testing. The pixels, assigned to the pipil are red and everything else is black.
           """
           img, pupil_mask = self.convert_image(img_path)
           im = np.zeros((*img.shape, 3), dtype=np.uint8)
           im[img == 0] = [0,0,0]
-          im[img == 1] = [0,0,255]
+          if color == (0,0,255):
+               im[img == 1] = [0,0,255]
+               point_color = (255,255,255)
+          else:
+               im[img == 1] = [255,255,255]
+               point_color=color
+               
 
-          x,y,w,h = self.get_pupil_contour(img)
+          (x,y,w,h),(leftmost, topmost, rightmost, bottommost) = self.get_pupil_contour(img)
           top_left = (x, y)
           bottom_right = (x + w, y + h)
-          cv2.rectangle(im, top_left, bottom_right, (0, 255, 0), 2)
+          #cv2.rectangle(im, top_left, bottom_right, (0, 255, 0), 2)
+
+          font = cv2.FONT_HERSHEY_SIMPLEX 
+          fontScale = 0.5
+          thickness = 1
+          cv2.putText(im, str(width), (img.shape[1] - 50, img.shape[0] - 30), font,  fontScale, color, thickness, cv2.LINE_AA)
+
+
+          for point in (leftmost, topmost, rightmost, bottommost):
+               radius = 1
+               cv2.circle(im, point, radius, point_color, thickness=5)
 
           if not cv2.imwrite(file_path, im):
                print("Saving highlighted image was unsuccessful")
@@ -129,15 +154,29 @@ class PupilSizeCalculator:
                self.set_previous_pupil_size(current_pupil_size)
                self.set_previous_file_path(image_path)
                return False
-          change = abs(current_pupil_size - previous_pupil_size) / previous_pupil_size * 100
+          
+          abs_diff = abs(current_pupil_size - previous_pupil_size)
+          average_value = (current_pupil_size + previous_pupil_size) / 2
+          change = (abs_diff / average_value) * 100
           self.set_previous_pupil_size(current_pupil_size)
+          self.set_previous_file_path(image_path)
           if change > self.get_threshold():
-               #self.save_pupil_mask(f"pupil_change_{self.get_change_counter()}_start.png", self.get_previous_file_path())
-               self.set_previous_file_path(image_path)
-               #self.save_pupil_mask(f"pupil_change_{self.get_change_counter()}_end.png", self.get_previous_file_path())
-               self.increase_counter()
+               #self.save_pupil_mask(f"pupil_change_{self.get_change_counter()}_start.png", self.get_previous_file_path(), previous_pupil_size, (0,0,255))
+               #self.set_previous_file_path(image_path)
+               self.increase_change_counter()
+               current_processed_counter = self.get_processed_counter()
+               current_change_counter = self.get_change_counter()
+               filename = os.path.join(args.output_folder, f"pupil_{current_processed_counter}_change_{current_change_counter}.png")
+               self.save_pupil_mask(filename, self.get_previous_file_path(), current_pupil_size,(0,0,255))
+               self.increase_processed_counter()
                return True
-          return False
+          else:
+               current_processed_counter = self.get_processed_counter()
+               current_change_counter = self.get_change_counter()
+               filename = os.path.join(args.output_folder,f"pupil_{current_processed_counter}_change_{current_change_counter}.png")
+               self.save_pupil_mask(filename, self.get_previous_file_path(), current_pupil_size, (0,255,0))
+               self.increase_processed_counter()
+               return False
 
 
 def sort_key(filename):
@@ -153,6 +192,7 @@ def process_folder(folder_path, threshold):
      calculator = PupilSizeCalculator(threshold)
 
      sorted_filenames = sorted(os.listdir(folder_path), key=sort_key)
+     print(len(sorted_filenames))
 
      for filename in sorted_filenames:
           if filename.endswith(".png"):
@@ -166,7 +206,28 @@ def process_folder(folder_path, threshold):
                     calculator.reset_previous_pupil_size()
                     print(f"Unable to detect a full pupil on the recording {filename}.")
 
-process_folder("/home/data/CaDISv2/Video03/Labels", threshold=10)
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--input_folder",
+    help="Folder name where the labeled pictures are",
+    default="/home/data/CaDISv2/Video01/Labels",
+)
+parser.add_argument(
+    "--output_folder",
+    help="Folder name where the pictures should be produced",
+    default="/home/guests/dominika_darabos/segmentation-for-cataract-surgery/samples/pupil_size",
+    type=str,
+)
+
+parser.add_argument(
+    "--change_threshold",
+    help="The percentage from which a change is defined as significant",
+    default=30,
+    type=int,
+)
+args = parser.parse_args()
+process_folder(args.input_folder, threshold=args.change_threshold)
 
 
 
