@@ -51,7 +51,7 @@ for video_num in [2, 12, 22]:
 
         # Postprocessing
         segmentation = processor.post_process_semantic_segmentation(outputs, target_sizes=[[540, 960]])[0]
-        frame = frame_image_path.split("/")[-1]
+        frame = frame_image_path.split("/")[0][-1]
         frame = frame.split(".")[0]
         filename = os.path.join(args.output_dir, f'Video_{video_num:02d}', f'seg_{video_num}_{frame}.png')
         #segmentation_image = Image.fromarray(segmentation.numpy())
