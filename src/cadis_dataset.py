@@ -175,7 +175,7 @@ class CataractsDataset(Dataset):
                 inputs = self.processor(images=frame_image, task_inputs=["panoptic"], return_tensors="pt")
                 inputs = {k:v.squeeze() if isinstance(v, torch.Tensor) else v[0] for k,v in inputs.items()}
 
-                return inputs, frame_image
+                return inputs, frame_image, frame_path
 
             idx -= len(video_data['frames'])
 
