@@ -1,8 +1,11 @@
 from torch.utils.data import Dataset
 from PIL import Image
+import torchvision.transforms as transforms
 import numpy as np
-import os
+import random
 import torch
+import os
+
 
 from constants import DATA_DIR
 
@@ -16,12 +19,18 @@ class CadisDataset(Dataset):
         video_numbers (list): List of video numbers to include in the dataset.
         experiment (int): Experiment number for label remapping.
     """
-    def __init__(self, processor, video_numbers=[1], experiment=None):
+    def __init__(self, processor, video_numbers=[1], transform=False, experiment=None, flip=None):
         self.processor = processor
         self.video_numbers = video_numbers
         self.experiment = experiment
         self.root_dir = DATA_DIR
+        self.flip = flip
         self.load_metadata()
+        self.data_transforms = []
+        if transform:
+            self.data_transforms.append(transforms.RandomApply([transforms.GaussianBlur(kernel_size=k) for k in range(3, 8, 2)], p=0.05))  # Gaussian blurring
+            self.data_transforms.append(transforms.ColorJitter(brightness=(2/3, 3/2), contrast=(2/3, 3/2), saturation=(2/3, 3/2), hue=(-0.05, 0.05)))  # Torchvision color jitter
+            self.data_transforms = transforms.Compose(self.data_transforms)
 
     def load_metadata(self):
         """Load metadata for the dataset."""
@@ -92,8 +101,19 @@ class CadisDataset(Dataset):
                 frame_data = video_data['frames'][idx]
                 frame_path, label_path = frame_data['frame_path'], frame_data['label_path']
 
-                frame_image = np.array(Image.open(frame_path))
-                label_image = np.array(Image.open(label_path))
+                frame_image = Image.open(frame_path)
+                label_image = Image.open(label_path)
+                
+                # Apply data augmentation if needed
+                if self.data_transforms:
+                    if random.random() < 0.5:
+                        frame_image = frame_image.transpose(Image.FLIP_LEFT_RIGHT)
+                        label_image = label_image.transpose(Image.FLIP_LEFT_RIGHT)
+
+                    frame_image = self.data_transforms(frame_image)
+
+                frame_image = np.array(frame_image)
+                label_image = np.array(label_image)
 
                 # Remap labels if needed
                 if self.experiment == 1:
