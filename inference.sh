@@ -13,6 +13,6 @@ ml cuda  # load default CUDA module
 CONDA_PATH=/home/guests/zuzanna_trafas/anaconda3
 source $CONDA_PATH/etc/profile.d/conda.sh
 conda activate oneformer
-python src/inference.py --model_folder_name oneformer_coco_swin_large_20240202_175244/model_checkpoint_9_400 --save_name driven-monkey-81
+python src/inference.py --model_folder_name oneformer_ade20k_swin_large_20240204_135643/model_checkpoint_5_0 --save_name whole-smoke-83
 ml -cuda  # unload all modules
 conda deactivate

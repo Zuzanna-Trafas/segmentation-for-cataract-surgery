@@ -24,15 +24,5 @@
     "22": {"isthing": 1, "name": "capsule cutting tool handle"},
     "23": {"isthing": 1, "name": "Secondary Knife Handle"},
     "24": {"isthing": 1, "name": "Lens Injector Handle"},
-    "25": {"isthing": 1, "name": "stitching tool"},
-    "26": {"isthing": 1, "name": "stitching tool Holder"},
-    "27": {"isthing": 1, "name": "drainage tool"},
-    "28": {"isthing": 1, "name": "Primary Knife Handle"},
-    "29": {"isthing": 1, "name": "eye gel cutter"},
-    "30": {"isthing": 1, "name": "stabilization device"},
-    "31": {"isthing": 1, "name": "Marker"},
-    "32": {"isthing": 1, "name": "fluid injection handle"},
-    "33": {"isthing": 1, "name": "delicate tissue holding tool"},
-    "34": {"isthing": 1, "name": "Cotton"},
-    "35": {"isthing": 1, "name": "Iris Hooks"}
+    "25": {"isthing": 1, "name": "Ignore"}
   }

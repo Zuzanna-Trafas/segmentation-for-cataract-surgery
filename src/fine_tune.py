@@ -32,6 +32,7 @@ parser.add_argument("--batch_size", type=int, help="Batch size", default=1)
 parser.add_argument(
     "--mixed_precision", type=bool, help="Mixed precision", default=False
 )
+parser.add_argument("--data_augmentation", type=bool, help="Whether to use data augmentation", default=False)
 args = parser.parse_args()
 
 # Create save path for the results
@@ -46,6 +47,9 @@ training_params = {
     "batch_size": args.batch_size,
     "mixed_precision": args.mixed_precision,
     "model_save_path": save_dir,
+    "data_augmentation": args.data_augmentation,
+    "lr_patience": 1000,
+    "lr_factor": 0.5,
 }
 
 # Initialize wand and save hyperparameters
@@ -68,11 +72,11 @@ processor.image_processor.num_text = (
     model.config.num_queries - model.config.text_encoder_n_ctx
 )
 
-# Load the datasets
 train_dataset = CadisDataset(
     processor, 
     video_numbers=[1,3,4,5,8,9,10,11,13,14,15,17,18,19,20,21,23,24,25],
-    experiment=training_params["experiment"]
+    experiment=training_params["experiment"],
+    transform=training_params["data_augmentation"]
 )
 val_dataset = CadisDataset(
     processor, 
@@ -94,8 +98,8 @@ test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
 # Initialize optimizer, scheduler, and early stopping
 optimizer = AdamW(model.parameters(), lr=training_params["lr"])
-early_stopping = EarlyStopping(patience=1000)
-scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=2000)
+early_stopping = EarlyStopping(patience=2500)
+scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=training_params['lr_factor'], patience=training_params['lr_patience'])
 scaler = GradScaler() # for mixed precision training
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
