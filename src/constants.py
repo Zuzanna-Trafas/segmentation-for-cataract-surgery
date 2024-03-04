@@ -1,5 +1,5 @@
 MODEL_SAVE_DIR = "/home/data/cadis_results/trained_models"
-DATA_DIR = "/home/data/CaDISv2"
+CADIS_DIR = "/home/data/CaDISv2"
 CATARACTS_DATA_DIR = "/home/data/CATARACTS"
 EVAL_STEPS = 100
 PRESENCE_IN_FRAMES_PER_CLASS = {

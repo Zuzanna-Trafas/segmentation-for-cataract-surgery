@@ -3,6 +3,7 @@ import matplotlib.patches as mpatches
 from matplotlib import cm
 import torch
 import json
+import re
 from utils.cadis_visualization import get_cadis_colormap
 import numpy as np
 from matplotlib.colors import ListedColormap
@@ -21,6 +22,11 @@ def apply_custom_colormap(binary, colormap):
         colored_segmentation[mask] = color
 
     return colored_segmentation
+
+
+def natural_key(string_):
+    """See https://blog.codinghorror.com/sorting-for-humans-natural-sort-order/"""
+    return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string_)]
 
 
 def save_segmentation(original_image, ground_truth_labels, segmentation, miou, processor, path):
