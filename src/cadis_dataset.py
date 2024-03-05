@@ -136,7 +136,7 @@ class CadisDataset(Dataset):
 
                 if self.balancing:
                     if (np.unique(label_image) < 7).all():
-                        return None
+                        return 0, 0, 0
 
                 # Map the image and label to the form needed by the model
                 inputs = self.processor(images=frame_image, segmentation_maps=label_image, task_inputs=["panoptic"], return_tensors="pt")
@@ -144,7 +144,7 @@ class CadisDataset(Dataset):
 
                 return inputs, frame_image, label_image
             idx -= len(video_data['frames'])
-        return None
+        return 0, 0, 0
 
     def __len__(self):
         total_frames = sum(len(video_data['frames']) for video_data in self.video_metadata)

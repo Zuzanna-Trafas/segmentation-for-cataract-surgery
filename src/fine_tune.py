@@ -112,12 +112,12 @@ model.to(device)
 
 best_val_loss = float('inf')
 for epoch in range(training_params["epochs"]):
-    for step, data in enumerate(train_dataloader):
+    for step, (batch, _, _) in enumerate(train_dataloader):
         # If undersampling is enabled, skip the batch if it is empty
-        if data is None:
+        if batch == 0:
+            print("Skip")
             continue
 
-        batch, _, _ = data
         optimizer.zero_grad()
 
         batch = {k: v.to(device) for k, v in batch.items()}
