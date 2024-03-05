@@ -2,6 +2,9 @@ MODEL_SAVE_DIR = "/home/data/cadis_results/trained_models"
 CADIS_DIR = "/home/data/CaDISv2"
 CATARACTS_DATA_DIR = "/home/data/CATARACTS"
 EVAL_STEPS = 100
+TRAIN_VIDEO_IDS = [1,3,4,5,8,9,10,11,13,14,15,17,18,19,20,21,23,24,25]
+VAL_VIDEO_IDS = [6,7,16]
+TEST_VIDEO_IDS = [2,12,22]
 PRESENCE_IN_FRAMES_PER_CLASS = {
     0: 100,
     1: 96,
@@ -40,5 +43,3 @@ PRESENCE_IN_FRAMES_PER_CLASS = {
     34: 12,
     35: 4
 }
-
-CLASS_REPEAT_FACTORS = {}

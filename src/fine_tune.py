@@ -9,7 +9,7 @@ import argparse
 import wandb
 import os
 
-from constants import MODEL_SAVE_DIR, EVAL_STEPS
+from constants import MODEL_SAVE_DIR, EVAL_STEPS, TRAIN_VIDEO_IDS, VAL_VIDEO_IDS, TEST_VIDEO_IDS
 from cadis_dataset import CadisDataset
 from utils.early_stopping import EarlyStopping
 from utils.tools import prepare_metadata, save_checkpoint
@@ -33,6 +33,7 @@ parser.add_argument(
     "--mixed_precision", type=bool, help="Mixed precision", default=False
 )
 parser.add_argument("--data_augmentation", type=bool, help="Whether to use data augmentation", default=False)
+parser.add_argument("--balancing", type=bool, help="Whether to balance the dataset", default=False)
 args = parser.parse_args()
 
 # Create save path for the results
@@ -48,7 +49,8 @@ training_params = {
     "mixed_precision": args.mixed_precision,
     "model_save_path": save_dir,
     "data_augmentation": args.data_augmentation,
-    "lr_patience": 1000,
+    "balancing": args.balancing,
+    "lr_patience": 2000,
     "lr_factor": 0.5,
 }
 
@@ -74,18 +76,19 @@ processor.image_processor.num_text = (
 
 train_dataset = CadisDataset(
     processor, 
-    video_numbers=[1,3,4,5,8,9,10,11,13,14,15,17,18,19,20,21,23,24,25],
+    video_numbers=TRAIN_VIDEO_IDS,
     experiment=training_params["experiment"],
+    balancing=training_params["balancing"],
     transform=training_params["data_augmentation"]
 )
 val_dataset = CadisDataset(
     processor, 
-    video_numbers=[6,7,16], 
+    video_numbers=VAL_VIDEO_IDS, 
     experiment=training_params["experiment"]
 )
 test_dataset = CadisDataset(
     processor, 
-    video_numbers=[2,12,22], 
+    video_numbers=TEST_VIDEO_IDS, 
     experiment=training_params["experiment"]
 )
 
@@ -110,6 +113,11 @@ model.to(device)
 best_val_loss = float('inf')
 for epoch in range(training_params["epochs"]):
     for step, (batch, _, _) in enumerate(train_dataloader):
+        # If undersampling is enabled, skip the batch if it is empty
+        if batch == 0:
+            print("Skip")
+            continue
+
         optimizer.zero_grad()
 
         batch = {k: v.to(device) for k, v in batch.items()}
@@ -151,6 +159,7 @@ for epoch in range(training_params["epochs"]):
                 checkpoint_path = os.path.join(save_dir, f"model_checkpoint_{epoch + 1}_{step}")
                 save_checkpoint(model, processor, optimizer, checkpoint_path)
             if early_stopping.should_stop(val_loss):
+                print("Early stopping")
                 break
 
 

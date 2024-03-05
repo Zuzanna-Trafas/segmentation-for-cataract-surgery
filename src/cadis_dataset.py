@@ -21,12 +21,13 @@ class CadisDataset(Dataset):
         transform (bool): Whether to apply data augmentation to the dataset.
         experiment (int): Experiment number for label remapping.
     """
-    def __init__(self, processor, video_numbers=[1], transform=False, experiment=None):
+    def __init__(self, processor, video_numbers=[1], balancing=False, transform=False, experiment=None):
         self.processor = processor
         self.video_numbers = video_numbers
         self.experiment = experiment
         self.root_dir = CADIS_DIR
         self.load_metadata()
+        self.balancing = balancing
         self.data_transforms = []
         if transform:
             self.data_transforms.append(transforms.RandomApply([transforms.GaussianBlur(kernel_size=k) for k in range(3, 8, 2)], p=0.05))  # Gaussian blurring
@@ -94,10 +95,28 @@ class CadisDataset(Dataset):
         mask = np.logical_and(label >= 25, label <= 35)
         label[mask] = 25
         return label
+    
+    def remap_experiment(self, experiment, label):
+        if experiment == 1:
+            return self.remap_experiment1(label)
+        elif experiment == 2:
+            return self.remap_experiment2(label)
+        elif experiment == 3:
+            return self.remap_experiment3(label)
+    
+    def apply_transforms(self, frame_image, label_image):
+        """Apply data augmentation to the frame and label images."""
+        if random.random() < 0.5:
+            frame_image = frame_image.transpose(Image.FLIP_LEFT_RIGHT)
+            label_image = label_image.transpose(Image.FLIP_LEFT_RIGHT)
+
+        frame_image = self.data_transforms(frame_image)
+
+        return frame_image, label_image
 
     def __getitem__(self, idx):
         """Return next frame by index"""
-        for video_data in self.video_metadata:
+        for video_id, video_data in enumerate(self.video_metadata):
             if idx < len(video_data['frames']):
                 frame_data = video_data['frames'][idx]
                 frame_path, label_path = frame_data['frame_path'], frame_data['label_path']
@@ -107,30 +126,25 @@ class CadisDataset(Dataset):
                 
                 # Apply data augmentation if needed
                 if self.data_transforms:
-                    if random.random() < 0.5:
-                        frame_image = frame_image.transpose(Image.FLIP_LEFT_RIGHT)
-                        label_image = label_image.transpose(Image.FLIP_LEFT_RIGHT)
-
-                    frame_image = self.data_transforms(frame_image)
+                    self.apply_transforms(frame_image, label_image)
 
                 frame_image = np.array(frame_image)
                 label_image = np.array(label_image)
 
                 # Remap labels if needed
-                if self.experiment == 1:
-                    label_image = self.remap_experiment1(label_image)
-                elif self.experiment == 2:
-                    label_image = self.remap_experiment2(label_image)
-                elif self.experiment == 3:
-                    label_image = self.remap_experiment3(label_image)
+                label_image = self.remap_experiment(self.experiment, label_image)
+
+                if self.balancing:
+                    if (np.unique(label_image) < 7).all():
+                        return 0, 0, 0
 
                 # Map the image and label to the form needed by the model
                 inputs = self.processor(images=frame_image, segmentation_maps=label_image, task_inputs=["panoptic"], return_tensors="pt")
                 inputs = {k:v.squeeze() if isinstance(v, torch.Tensor) else v[0] for k,v in inputs.items()}
 
                 return inputs, frame_image, label_image
-
             idx -= len(video_data['frames'])
+        return 0, 0, 0
 
     def __len__(self):
         total_frames = sum(len(video_data['frames']) for video_data in self.video_metadata)

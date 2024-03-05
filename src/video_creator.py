@@ -29,16 +29,37 @@ parser.add_argument(
     type=int
 )
 parser.add_argument(
+    "--every_n",
+    help="Every n-th frame will be taken into the video",
+    default=1,
+    type=int
+)
+parser.add_argument(
     "--video_name",
     help="Name of the output video",
     default="output",
     type=str
 )
+parser.add_argument(
+    "--start",
+    help="Starting frame",
+    default=0,
+    type=int
+)
+parser.add_argument(
+    "--end",
+    help="Ending frame",
+    default=None,
+    type=int
+)
 args = parser.parse_args()
  
 img_array = []
 image_files = sorted(os.listdir(args.input_folder), key=natural_key)
-for filename in image_files:
+if args.end is None:
+    args.end = len(image_files)
+
+for filename in image_files[args.start:args.end:args.every_n]:
     img = cv2.imread(os.path.join(args.input_folder, filename))
     height, width, layers = img.shape
     size = (width,height)
