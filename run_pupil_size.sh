@@ -17,4 +17,4 @@ if command -v conda &> /dev/null; then
 else
     source activate oneformer
 fi
-python3 src/pupil_size_calculator.py --input_folder="/home/data/CaDISv2/Video01/Labels" --output_folder="/home/guests/dominika_darabos/segmentation-for-cataract-surgery/samples/pupil_size" --change_threshold=10
+python3 src/pupil_size_calculator.py --input_label_folder="/home/data/CaDISv2/Video01/Labels" --output_folder="/home/guests/dominika_darabos/segmentation-for-cataract-surgery/samples/pupil_size" --change_threshold=10
