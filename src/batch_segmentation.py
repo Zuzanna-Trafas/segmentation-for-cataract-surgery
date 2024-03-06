@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from cataracts_dataset import CataractsDataset
 from utils.tools import apply_custom_colormap
 from utils.cadis_visualization import get_cadis_colormap
-
+from pupil_size_calculator import PupilSizeCalculator
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -20,7 +20,8 @@ parser.add_argument(
     help="Folder name where the model and processor are saved",
     default="oneformer_coco_swin_large_20240130_125029",
 )
-parser.add_argument("--output_dir", help="Directory to save segmented images", default="/home/data/cadis_results/segmentation_results")
+#parser.add_argument("--output_dir", help="Directory to save segmented images", default="/home/data/cadis_results/segmentation_results")
+parser.add_argument("--output_dir", help="Directory to save segmented images", default="/home/guests/dominika_darabos/segmentation-for-cataract-surgery/samples/video_sample")
 args = parser.parse_args()
 
 wandb.login()
@@ -78,6 +79,9 @@ for video_num in [1]:
         segmentation_image = Image.fromarray(segmentation.numpy().astype(np.uint8))
         segmentation_image.save(filename)
 
+        calculator = PupilSizeCalculator(threshold=30)
+        pupil_width = calculator.calculate_width(segmentation.numpy().astype(np.uint8))
+
         # Save colored segmentation alongside video frame
         filename_plot = os.path.join(args.output_dir, f'comparison_{video_num:02d}', f'{frame}.png')
         os.makedirs(os.path.dirname(filename_plot), exist_ok=True)
@@ -95,6 +99,9 @@ for video_num in [1]:
         axs[1].imshow(segmentation_squeezed)
         axs[1].set_title("Segmented Image")
         axs[1].axis("off")
+        if pupil_width is None:
+            pupil_width = "invalid"
+        axs[1].text(0.5, -0.1, f"Pupil width: {str(pupil_width)}", horizontalalignment='center', verticalalignment='center', transform=axs[1].transAxes)
         plt.tight_layout()
         plt.savefig(filename_plot)
         plt.close(fig)
@@ -102,3 +109,5 @@ for video_num in [1]:
 
         wandb.log({"time": end - start})
         wandb.log({"expected_time_hours": ((end - start) * (frame_number - i))/3600})
+        break
+    break
