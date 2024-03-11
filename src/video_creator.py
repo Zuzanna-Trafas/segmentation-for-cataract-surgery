@@ -64,8 +64,6 @@ def create_multiple_videos():
 
 def create_single_video(directory, output_path):
     img_array = []
-    #image_files = sorted(os.listdir(directory), key=natural_key)
-    #image_files = sorted(os.listdir(args.input_folder),key=lambda x: int(os.path.basename(x).split('_')[1]))
     image_files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f)) and is_image_file(f)]
     image_files.sort(key=natural_key)
     if args.end is None:
@@ -92,10 +90,9 @@ def has_subdirectories(directory):
     return False
 
 def is_image_file(filename):
-    image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif']  # Add more extensions if needed
+    image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif']
     return any(filename.endswith(extension) for extension in image_extensions)
 
-# Example usage
 if __name__ == "__main__":
     if has_subdirectories(args.input_folder):
         create_multiple_videos()
