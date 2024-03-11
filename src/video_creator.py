@@ -53,23 +53,54 @@ parser.add_argument(
     type=int
 )
 args = parser.parse_args()
- 
-img_array = []
-image_files = sorted(os.listdir(args.input_folder), key=natural_key)
-if args.end is None:
-    args.end = len(image_files)
 
-for filename in image_files[args.start:args.end:args.every_n]:
-    img = cv2.imread(os.path.join(args.input_folder, filename))
-    height, width, layers = img.shape
-    size = (width,height)
-    img_array.append(img)
- 
-video_filepath = os.path.join(args.output_path, f"{args.video_name}.mp4")
-out = cv2.VideoWriter(video_filepath,cv2.VideoWriter_fourcc(*'mp4v'), args.frame_rate, size)
 
-for i in range(len(img_array)):
-    out.write(img_array[i])
-out.release()
+def create_multiple_videos():
+    for subdir in os.listdir(args.input_folder):
+        subdir_path = os.path.join(args.input_folder, subdir)
+        if os.path.isdir(subdir_path):
+            video_filepath = os.path.join(args.output_path, f"{subdir}_fps_{args.frame_rate}.mp4")
+            create_single_video(subdir_path, video_filepath)
 
-print("Finish!!")
+def create_single_video(directory, output_path):
+    img_array = []
+    #image_files = sorted(os.listdir(directory), key=natural_key)
+    #image_files = sorted(os.listdir(args.input_folder),key=lambda x: int(os.path.basename(x).split('_')[1]))
+    image_files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f)) and is_image_file(f)]
+    image_files.sort(key=natural_key)
+    if args.end is None:
+        args.end = len(image_files)
+
+    for filename in image_files[args.start:args.end:args.every_n]:
+        img = cv2.imread(os.path.join(directory, filename))
+        height, width, layers = img.shape
+        size = (width,height)
+        img_array.append(img)
+
+    out = cv2.VideoWriter(output_path,cv2.VideoWriter_fourcc(*'mp4v'), args.frame_rate, size)
+
+    for i in range(len(img_array)):
+        out.write(img_array[i])
+    out.release()
+    print(f"Video created: {output_path}")
+
+def has_subdirectories(directory):
+    for item in os.listdir(directory):
+        item_path = os.path.join(directory, item)
+        if os.path.isdir(item_path):
+            return True
+    return False
+
+def is_image_file(filename):
+    image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif']  # Add more extensions if needed
+    return any(filename.endswith(extension) for extension in image_extensions)
+
+# Example usage
+if __name__ == "__main__":
+    if has_subdirectories(args.input_folder):
+        create_multiple_videos()
+    else:
+        video_filepath = os.path.join(args.output_path, f"{args.video_name}.mp4")
+        create_single_video(args.input_folder, video_filepath)
+
+    

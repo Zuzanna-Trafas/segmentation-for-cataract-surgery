@@ -10,9 +10,9 @@
  
 # To run a script on the cluster, change CONDA_PATH and export WANDB_API_KEY
 ml cuda  # load default CUDA module
-CONDA_PATH=/home/guests/zuzanna_trafas/anaconda3
+CONDA_PATH=/home/guests/dominika_darabos/miniconda3
 source $CONDA_PATH/etc/profile.d/conda.sh
 conda activate oneformer
-python src/video_creator.py --input_folder="/home/data/cadis_results/segmentation_results/comparison_01" --output_path="/home/data/cadis_results/segmentation_results/" --frame_rate=3 --every_n=10 --video_name="comparison01" --start=1650 --end=16500
+python src/video_creator.py --input_folder="/home/data/cadis_results/segmented_images/Comparison" --output_path="/home/guests/dominika_darabos/segmentation-for-cataract-surgery/samples/" --frame_rate=10 --every_n=2 --video_name="segmented_size_comparison_01" --start=0 --end=4000
 ml -cuda  # unload all modules
 conda deactivate
