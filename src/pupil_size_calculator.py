@@ -67,7 +67,6 @@ class PupilSizeCalculator:
           The function returns the (x,y,w,h) parameters for the merged contours.
           """
           contours, _ = cv2.findContours(recording.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-          print("CONTORUS: ", contours)
           bounding_rect = (0,0,0,0)
           edge_points = ((0, 0), (0, 0), (0, 0), (0, 0))
           if contours:
@@ -104,17 +103,10 @@ class PupilSizeCalculator:
           Calculates the width of the masked image based on the contour, and the difference of the most right and most left pixels.
           Returns nones if pupil is not found, or not the full pupil is detected on the image.
           """
-          print("IMAGE ", img)
           recording, pupil_mask = self.convert_image(img)
           (x,y,w,h),(leftmost, topmost, rightmost, bottommost) = self.get_pupil_contour(recording)
           #if it is not near to a rounded shape
           if w < 0.80*h or h < 0.80*w:
-               print("w: ", w)
-               print("h: ", h)
-               print("x: ", x)
-               print("y: ", y)
-               print("(leftmost, topmost, rightmost, bottommost) ", (leftmost, topmost, rightmost, bottommost))
-               print("recording shape: ", recording.shape)
                # if the edge of the bounding box is exactly on the edge of the image shape, the pupil is probably not full on the image
                if (x + w) == recording.shape[1] or (y + h) == recording.shape[0] or x == 0 or y == 0:
                     print("Only the part of the pupil is visible.")
@@ -162,11 +154,10 @@ class PupilSizeCalculator:
           label_image = cv2.imread(label_img_path, cv2.IMREAD_GRAYSCALE)
           img, pupil_mask = self.convert_image(label_image)
           orig_im = cv2.imread(orig_img_path)
-          print("shape of label img: ", label_image.shape)
-          print("shape of orig image: ", orig_im.shape)
           if orig_im is None:
                print(f"Error: Unable to load image from {orig_img_path}")
                return
+          print("SHAPE OF ORIGINAL: ", orig_im.shape)
           im = np.zeros((*img.shape, 3), dtype=np.uint8)
           im[img == 0] = [0,0,0]
 
@@ -187,31 +178,23 @@ class PupilSizeCalculator:
                cv2.circle(orig_im, point, radius, color, thickness=8)
           """
 
-          
-          # Get the shape of both images
+          # scale the two images
           img_height, img_width = img.shape[:2]
           orig_height, orig_width = orig_im.shape[:2]
 
-          # Calculate the scaling factors for width and height
           width_scale = orig_width / img_width
           height_scale = orig_height / img_height
 
-          # Add text on orig_im
           font = cv2.FONT_HERSHEY_SIMPLEX 
           fontScale = 1
           thickness = 2
           background_color = (40,40,110)
-          text = str(width)  # Assuming width is defined elsewhere
+          text = str(width)
 
-          # Calculate text size
           text_size, _ = cv2.getTextSize(text, font, fontScale, thickness)
-
-          # Define text position
           text_position = (orig_width - 200, orig_height - 100)
-
-          # Define background rectangle position and size
           background_position = (text_position[0] - 5, text_position[1] - text_size[1] - 10)
-          background_size = (text_size[0] + 10, text_size[1] + 20)  # Add a padding of 10 pixels
+          background_size = (text_size[0] + 10, text_size[1] + 20)
 
           # Draw background rectangle
           cv2.rectangle(orig_im, background_position, (background_position[0] + background_size[0], background_position[1] + background_size[1]), background_color, cv2.FILLED)
@@ -227,7 +210,71 @@ class PupilSizeCalculator:
 
           if not cv2.imwrite(out_file_path, orig_im):
                print("Saving highlighted image was unsuccessful")
+     
+     def save_comparison(self, out_file_path, orig_img_path, label_img_path, width, color):
+          """
+          Save the image for testing. The pixels, assigned to the pipil are red and everything else is black.
+          """
+          label_image = cv2.imread(label_img_path, cv2.IMREAD_GRAYSCALE)
+          img, pupil_mask = self.convert_image(label_image)
+          orig_im = cv2.imread(orig_img_path)
+          if orig_im is None:
+               print(f"Error: Unable to load image from {orig_img_path}")
+               return
+          print("SHAPE OF ORIGINAL: ", orig_im.shape)
+          im = np.zeros((*img.shape, 3), dtype=np.uint8)
+          im[img == 0] = [0,0,0]
+          (x,y,w,h),(leftmost, topmost, rightmost, bottommost) = self.get_pupil_contour(img)
 
+
+          if color == (0,0,255):
+               im[img == 1] = [0,0,255]
+               point_color = (255,255,255)
+          else:
+               im[img == 1] = [255,255,255]
+               point_color=color
+
+          # scale the two images
+          img_height, img_width = img.shape[:2]
+          orig_height, orig_width = orig_im.shape[:2]
+          width_scale = orig_width / img_width
+          height_scale = orig_height / img_height
+
+          font = cv2.FONT_HERSHEY_SIMPLEX 
+          fontScale = 1
+          thickness = 2
+          background_color = (40,40,110)
+          text = str(width)
+          text_size, _ = cv2.getTextSize(text, font, fontScale, thickness)
+          text_position = (orig_width - 200, orig_height - 100)
+          background_position = (text_position[0] - 5, text_position[1] - text_size[1] - 10)
+          background_size = (text_size[0] + 10, text_size[1] + 20)
+          # Draw background rectangle
+          cv2.rectangle(orig_im, background_position, (background_position[0] + background_size[0], background_position[1] + background_size[1]), background_color, cv2.FILLED)
+          cv2.putText(orig_im, text, text_position, font, fontScale, (255,255,255), thickness, cv2.LINE_AA)
+          fontScale = 0.6
+          thickness = 1
+          cv2.putText(im, str(width), (img.shape[1] - 100, img.shape[0] - 50), font,  fontScale, color, thickness, cv2.LINE_AA)
+
+          transformed_points = [(int(point[0] * width_scale), int(point[1] * height_scale)) for point in (leftmost, topmost, rightmost, bottommost)]
+          radius = 1
+          for point in (leftmost, topmost, rightmost, bottommost):
+               cv2.circle(im, point, radius, point_color, thickness=5)
+          radius = 3
+          for point in transformed_points:
+               cv2.circle(orig_im, point, radius, (255,255,255), thickness=8)
+
+
+          spacing = 50
+          max_height = max(orig_im.shape[0], im.shape[0])
+          im_resized = cv2.resize(im, (orig_im.shape[1], orig_im.shape[0]))
+          total_width = orig_im.shape[1] + im_resized.shape[1] + spacing * 3
+          total_height = max_height + spacing * 2
+          combined_image = np.ones((total_height, total_width, 3), dtype=np.uint8) * 255
+          combined_image[spacing:orig_im.shape[0]+spacing, spacing:orig_im.shape[1]+spacing, :] = orig_im
+          combined_image[spacing:im_resized.shape[0]+spacing, 
+                              orig_im.shape[1]+spacing*2:orig_im.shape[1]+spacing*2+im_resized.shape[1], :] = im_resized
+          cv2.imwrite(out_file_path, combined_image)
      
      def has_significant_change(self, current_pupil_size, orig_image_path, label_image_path):
           """
@@ -244,25 +291,33 @@ class PupilSizeCalculator:
           change = (abs_diff / average_value) * 100
           self.set_previous_pupil_size(current_pupil_size)
           self.set_previous_label_path(label_image_path)
+
           if change > self.get_threshold():
-               #self.save_pupil_mask(f"pupil_change_{self.get_change_counter()}_start.png", self.get_previous_file_path(), previous_pupil_size, (0,0,255))
-               #self.set_previous_file_path(image_path)
                self.increase_change_counter()
-               current_processed_counter = self.get_processed_counter()
-               current_change_counter = self.get_change_counter()
-               filename = os.path.join(args.output_folder, f"pupil_{current_processed_counter}_change_{current_change_counter}.png")
-               #self.save_pupil_mask(filename, self.get_previous_label_path(), current_pupil_size,(0,0,255))
-               self.save_original_with_pupil_size(filename, orig_image_path, self.get_previous_label_path(), current_pupil_size,(255,255,255))
-               self.increase_processed_counter()
+               color = (0,0,255)
                return True
           else:
-               current_processed_counter = self.get_processed_counter()
-               current_change_counter = self.get_change_counter()
-               filename = os.path.join(args.output_folder,f"pupil_{current_processed_counter}_change_{current_change_counter}.png")
-               #self.save_pupil_mask(filename, self.get_previous_label_path(), current_pupil_size, (0,255,0))
+               color = (0,255,0)
+               
+          current_processed_counter = self.get_processed_counter()
+          current_change_counter = self.get_change_counter()
+          filename = os.path.join(args.output_folder, f"pupil_{current_processed_counter}_change_{current_change_counter}.png")
+          filename_comp = os.path.join(args.output_folder, f"pupil_{current_processed_counter}_comparison.png")
+          if args.purpose == "mask":
+               self.save_pupil_mask(filename, self.get_previous_label_path(), current_pupil_size,color)
+          elif args.purpose == "original":
                self.save_original_with_pupil_size(filename, orig_image_path, self.get_previous_label_path(), current_pupil_size,(255,255,255))
-               self.increase_processed_counter()
+          elif args.purpose == "comparison":
+               self.save_comparison(filename_comp, orig_image_path, self.get_previous_label_path(), current_pupil_size,color)
+          else:
+               print("Invalid purpose.")
+               return
+          self.increase_processed_counter()
+          if change > self.get_threshold():
+               return True
+          else:
                return False
+
 
 
 def sort_key(filename):
@@ -278,14 +333,13 @@ def process_folder(label_folder_path, orig_folder_path, threshold):
      calculator = PupilSizeCalculator(threshold)
 
      sorted_filenames = sorted(os.listdir(label_folder_path), key=sort_key)
-     print(len(sorted_filenames))
 
      for filename in sorted_filenames:
           if filename.endswith(".png"):
                label_image_path = os.path.join(label_folder_path, filename)
                name, ext = os.path.splitext(filename)
                # Then, change the extension to .jpg
-               new_filename = name + '.jpg'
+               new_filename = name + '.png'
                orig_image_path = os.path.join(orig_folder_path, new_filename)
                label_image = cv2.imread(label_image_path, cv2.IMREAD_GRAYSCALE)
                pupil_width= calculator.calculate_width(label_image)
@@ -321,6 +375,12 @@ parser.add_argument(
     help="The percentage from which a change is defined as significant",
     default=30,
     type=int,
+)
+
+parser.add_argument(
+    "--purpose",
+    help="Options: mask, original, comparison",
+    type=str,
 )
 
 if __name__ == "__main__":
