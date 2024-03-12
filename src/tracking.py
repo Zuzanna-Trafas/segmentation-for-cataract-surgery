@@ -60,7 +60,7 @@ def handle_discontinuity(x, y):
 
 
 def tracking(tool_ind=0, path="/home/data/CaDISv2/Video01/Labels", output="/home/guests/nguyentoan_le/Praktikum",
-             plot_name='Trajectory.png'):
+             plot_name='Trajectory.png', fps=30):
     threshold_value = tool_ind
     
     # Load two images
@@ -115,9 +115,28 @@ def tracking(tool_ind=0, path="/home/data/CaDISv2/Video01/Labels", output="/home
     #print(imp)
     centroid_x, centroid_y = handle_discontinuity(centroid_x, centroid_y)
 
+    path_length = calculate_path_length(centroid_x, centroid_y)
+    total_time = sum([len(e) for e in centroid_x]) / fps
+    result_path = os.path.join(output, 'Metrics_tool_' + str(threshold_value) + '.txt')
+    os.makedirs(os.path.dirname(result_path), exist_ok=True)
+    with open(result_path, 'w', encoding="utf-8") as file:
+        file.write(f'Total path length (mm)  : {str(path_length)}\n')
+        file.write(f'Total time taken  (s)   : {str(total_time)}\n')
+        if total_time != 0:
+            file.write(f'Average velocity  (mm/s): {str(path_length / total_time)}\n')
+        else:
+            file.write(f'Average velocity  (mm/s): 0\n\n')
+        file.write("Centroid coordinates:\n")
+
     fig, ax = plt.subplots()
-    for x, y in zip(centroid_x, centroid_y):
-        ax.plot(x, y, 'b-')
+    with open(result_path, 'a', encoding="utf-8") as file:
+        for i, (x, y) in enumerate(zip(centroid_x, centroid_y)):
+            file.write(f'x_{i} = \n')
+            file.write(f'{x}\n')
+            file.write(f'y_{i} = \n')
+            file.write(f'{y}\n')
+            ax.plot(x, y, 'b-')
+
     ax.set_xlim(0, width)
     ax.set_ylim(0, height)
     ax.xaxis.tick_top()
@@ -126,6 +145,15 @@ def tracking(tool_ind=0, path="/home/data/CaDISv2/Video01/Labels", output="/home
     ax.set_ylabel('Y')
     ax.set_title('Trajectory of tool '+ str(threshold_value))
     fig.savefig(os.path.join(output, plot_name), dpi=300)
+    plt.close()
+
+
+def calculate_path_length(X, Y):
+    path_length = 0
+    for x, y in zip(X, Y):
+        x_cor, y_cor = np.array(x), np.array(y)
+        path_length += np.sqrt(np.sum((x_cor - y_cor)**2, axis=0))
+    return path_length
 
 
 if __name__ == "__main__":
@@ -140,17 +168,20 @@ if __name__ == "__main__":
     parser.add_argument("--segmentation", help="Path to folder where segmented images are saved", required=True)
     parser.add_argument("--output", help="Output path to save plot", required=True)
     parser.add_argument("--name_trajectory", help="Name of the plot", required=True)
+    parser.add_argument("--fps", help="Frame rate", type=int, default=30)
     args = parser.parse_args()
 
     assert os.path.isdir(args.segmentation), f"{args.segmentation} directory does not exist"
 
     if int(args.object_id) != -1:
         tracking(tool_ind=int(args.object_id), path=args.segmentation, output=args.output,
-                 plot_name=args.name_trajectory)
+                 plot_name=args.name_trajectory, fps=args.fps)
     else:
         for i in range(36):
             s = args.name_trajectory.split(".")
             s[0] = s[0] + str(i)
             name = ".".join(s)
             tracking(tool_ind=int(i), path=args.segmentation, output=args.output,
-                     plot_name=name)
+                     plot_name=name, fps=args.fps)
+
+    print("Finish!!")
