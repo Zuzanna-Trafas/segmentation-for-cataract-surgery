@@ -22,6 +22,8 @@ parser.add_argument(
 )
 #parser.add_argument("--output_dir", help="Directory to save segmented images", default="/home/data/cadis_results/segmentation_results")
 parser.add_argument("--output_dir", help="Directory to save segmented images", default="/home/guests/dominika_darabos/segmentation-for-cataract-surgery/samples/video_sample")
+parser.add_argument("--video_id", help="Id of the video in the CATARACTS test set", type=int, default=1)
+parser.add_argument("--fps", help="FPS", type=int, default=10)
 args = parser.parse_args()
 
 wandb.login()
@@ -50,64 +52,62 @@ model.to(device)
 
 colormap = get_cadis_colormap()
 
-for video_num in [1]:
-    test_dataset = CataractsDataset(processor, video_numbers=[video_num])
-    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
-    frame_number = len(test_dataloader)
-    wandb.log({"frame_number": frame_number})
-    for i, (batch, original_image, frame_path) in enumerate(test_dataloader):
-        # Filter out black images
-        if (np.unique(original_image) == [0]).all():
-            continue
-        start = time.time()
-        batch_ = {k: v.to(device) for k, v in batch.items()}
+test_dataset = CataractsDataset(processor, video_numbers=[args.video_id], experiment=3, fps=args.fps)
+test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+frame_number = len(test_dataloader)
+wandb.log({"frame_number": frame_number})
+for i, (batch, original_image, frame_path) in enumerate(test_dataloader):
+    # Filter out black images
+    if (np.unique(original_image) == [0]).all():
+        continue
+    start = time.time()
+    batch_ = {k: v.to(device) for k, v in batch.items()}
 
-        with torch.no_grad():
-            outputs = model(**batch_)
+    with torch.no_grad():
+        outputs = model(**batch_)
 
-        # Postprocessing
-        segmentation = processor.post_process_semantic_segmentation(outputs, target_sizes=[[540, 960]])[0]
+    # Postprocessing
+    segmentation = processor.post_process_semantic_segmentation(outputs, target_sizes=[[540, 960]])[0]
 
-        # Create a filename to save segmentation
-        frame = frame_path[0].split("/")[-1]
-        frame = frame.split(".")[0]
-        filename = os.path.join(args.output_dir, f'test{video_num:02d}', f'{frame}.png')
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
+    # Create a filename to save segmentation
+    frame = frame_path[0].split("/")[-1]
+    frame = frame.split(".")[0]
+    filename = os.path.join(args.output_dir, f'test{args.video_id:02d}', f'{frame}.png')
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-        segmentation = segmentation.cpu().detach()
-        # Save segmentation result
-        segmentation_image = Image.fromarray(segmentation.numpy().astype(np.uint8))
-        segmentation_image.save(filename)
+    segmentation = segmentation.cpu().detach()
+    # Save segmentation result
+    segmentation_image = Image.fromarray(segmentation.numpy().astype(np.uint8))
+    segmentation_image.save(filename)
 
-        calculator = PupilSizeCalculator(threshold=30)
-        pupil_width = calculator.calculate_width(segmentation.numpy().astype(np.uint8))
+    calculator = PupilSizeCalculator(threshold=30)
+    pupil_width = calculator.calculate_width(segmentation.numpy().astype(np.uint8))
 
-        # Save colored segmentation alongside video frame
-        filename_plot = os.path.join(args.output_dir, f'comparison_{video_num:02d}', f'{frame}.png')
-        os.makedirs(os.path.dirname(filename_plot), exist_ok=True)
-        
-        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
-        # Video frame
-        original_image_squeezed = original_image.squeeze(0)
-        axs[0].imshow(original_image_squeezed)
-        axs[0].set_title("Video Frame")
-        axs[0].axis("off")
+    # Save colored segmentation alongside video frame
+    filename_plot = os.path.join(args.output_dir, f'comparison_{args.video_id:02d}', f'{frame}.png')
+    os.makedirs(os.path.dirname(filename_plot), exist_ok=True)
+    
+    fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+    # Video frame
+    original_image_squeezed = original_image.squeeze(0)
+    axs[0].imshow(original_image_squeezed)
+    axs[0].set_title("Video Frame")
+    axs[0].axis("off")
 
-        # Segmentation
-        segmentation_squeezed = segmentation.squeeze(0)
-        segmentation_squeezed = apply_custom_colormap(segmentation_squeezed, colormap)
-        axs[1].imshow(segmentation_squeezed)
-        axs[1].set_title("Segmented Image")
-        axs[1].axis("off")
-        if pupil_width is None:
-            pupil_width = "invalid"
-        axs[1].text(0.5, -0.1, f"Pupil width: {str(pupil_width)}", horizontalalignment='center', verticalalignment='center', transform=axs[1].transAxes)
-        plt.tight_layout()
-        plt.savefig(filename_plot)
-        plt.close(fig)
-        end = time.time()
+    # Segmentation
+    segmentation_squeezed = segmentation.squeeze(0)
+    segmentation_squeezed = apply_custom_colormap(segmentation_squeezed, colormap)
+    axs[1].imshow(segmentation_squeezed)
+    axs[1].set_title("Segmented Image")
+    axs[1].axis("off")
+    if pupil_width is None:
+        pupil_width = "invalid"
+    axs[1].text(0.5, -0.1, f"Pupil width: {str(pupil_width)}", horizontalalignment='center', verticalalignment='center', transform=axs[1].transAxes)
+    plt.tight_layout()
+    plt.savefig(filename_plot)
+    plt.close(fig)
+    end = time.time()
 
-        wandb.log({"time": end - start})
-        wandb.log({"expected_time_hours": ((end - start) * (frame_number - i))/3600})
-        break
-    break
+    wandb.log({"time": end - start})
+    wandb.log({"expected_time_hours": ((end - start) * (frame_number - i))/3600})
+
