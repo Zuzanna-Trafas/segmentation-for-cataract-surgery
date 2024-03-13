@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import re
+import wandb
 
 
 def natural_key(string_):
@@ -120,12 +121,13 @@ def tracking(tool_ind=0, path="/home/data/CaDISv2/Video01/Labels", output="/home
     result_path = os.path.join(output, 'Metrics_tool_' + str(threshold_value) + '.txt')
     os.makedirs(os.path.dirname(result_path), exist_ok=True)
     with open(result_path, 'w', encoding="utf-8") as file:
-        file.write(f'Total path length (mm)  : {str(path_length)}\n')
-        file.write(f'Total time taken  (s)   : {str(total_time)}\n')
+        file.write(f'Total path length (pixels)     : {str(path_length)}\n')
+        file.write(f'Total time taken  (s)          : {str(total_time)}\n')
         if total_time != 0:
-            file.write(f'Average velocity  (mm/s): {str(path_length / total_time)}\n')
+            file.write(f'Average velocity (pixels/s): {str(path_length / total_time)}\n')
         else:
-            file.write(f'Average velocity  (mm/s): 0\n\n')
+            file.write(f'Average velocity (pixels/s): 0\n')
+        file.write(f'Total frames                   : {str(len(image_name))}\n')
         file.write("Centroid coordinates:\n")
 
     fig, ax = plt.subplots()
@@ -168,8 +170,21 @@ if __name__ == "__main__":
     parser.add_argument("--segmentation", help="Path to folder where segmented images are saved", required=True)
     parser.add_argument("--output", help="Output path to save plot", required=True)
     parser.add_argument("--name_trajectory", help="Name of the plot", required=True)
-    parser.add_argument("--fps", help="Frame rate", type=int, default=30)
+    parser.add_argument("--fps", help="Frame rate", type=int, default=10)
     args = parser.parse_args()
+
+    wandb.login()
+
+    config = {
+        "input_dir" : args.segmentation,
+        "output_dir": args.output,
+        "frame_rate": args.fps,
+    }
+
+    run = wandb.init(
+        project="Tracking-Metrics",
+        config=config,
+    )
 
     assert os.path.isdir(args.segmentation), f"{args.segmentation} directory does not exist"
 
